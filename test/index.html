@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+    <head lang="en">
+        <title>vn.js test</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta charset="UTF-8" />
+
+        <!-- Registers all vn components to the DOM. Must be imported first to display the <visual-novel> on a page. -->
+        <script src="../vn.js" type="module"></script>
+
+        <!-- Just some default styles for testing -->
+        <style>
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                background-color: #222;
+            }
+            
+            body > .vn-container {
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                display: flex;
+                justify-content: center;
+                place-items: center;
+                height: 100%;
+                overflow: hidden;
+            }
+
+            vn-actor:not(.speaking) {
+                filter: grayscale(0.1) brightness(0.4);
+                transition: filter transform 0.2s ease-in-out;
+            }
+
+            @keyframes fadein {
+                0% {
+                    opacity: 0;
+                }
+                100% {
+                    opacity: 1;
+                }
+            }
+            vn-scene {
+                animation: fadein 10s linear;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="vn-container">
+
+            <visual-novel>
+                <vn-project itemscope>
+                    <!-- Projects should always have these meta tags -->
+                    <meta itemprop="name" content="Untitled Visual Novel" />
+                    <meta
+                        itemprop="description"
+                        content="A simple visual novel using vn.js"
+                    />
+                    <meta itemprop="author" content="Anon" />
+                    <meta itemprop="version" content="1.0" />
+                    <meta itemprop="date" content="2025-04-29" />
+                    <meta itemprop="license" content="" />
+
+                    <vn-assets>
+                        
+                        <img
+                            uid="bowser"
+                            src="./images/backgrounds/bowser.png"
+                        >
+                        <img
+                            uid="park-at-night"
+                            src="./images/backgrounds/park-at-night.png"
+                        />
+                        <audio
+                            uid="menacing"
+                            src="./audio/music/menacing.ogg"
+                            loop
+                        ></audio>
+
+                        <vn-actor
+                            uid="kacey"
+                            name="Kacey"
+                            &face="neutral"
+                            &body="neutral"
+                            style="transform: scale(1.4);"
+                        >
+                            <body-part uid="body">
+                                <img
+                                    src="./images/actors/kacey/kacey-body-arrogant.png"
+                                    uid="neutral"
+                                    style="z-index: 1"
+                                />
+                            </body-part>
+                            <body-part uid="face">
+                                <img
+                                    src="./images/actors/kacey/kacey-face-neutral.png"
+                                    uid="neutral"
+                                    trigger=":|"
+                                />
+                                <img
+                                    src="./images/actors/kacey/kacey-face-scoff.png"
+                                    uid="scoff"
+                                    trigger=">:)"
+                                />
+                                <img
+                                    src="./images/actors/kacey/kacey-face-furious.png"
+                                    uid="furious"
+                                    trigger=">:("
+                                />
+                            </body-part>
+                        </vn-actor>
+
+                        <text-box
+                            uid="default"
+                            style="
+                                border-radius: 8px;
+                                border: 2px solid rgba(255, 255, 255, 0.5);
+                                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana,
+                                    sans-serif;
+                                font-size: 1.4em;
+                                height: 55svh;
+                            "
+                            bottom="2%"
+                            left="5%"
+                            right="5%"
+                            height="30%"
+                            background="linear-gradient(to bottom, rgba(10, 20, 40, 0.6), rgba(5, 10, 20, 0.9))"
+                            ms="40"
+                            start-delay="100"
+                            end-delay="200"
+                            scrolling
+                        >
+                        <vn-style uid="test">
+                            :host {
+                                ::slotted(text-box) {
+                                    .title {
+                                        background-color: rgba(100, 120, 150, 0.8);
+                                        color: red !important;
+                                        font-size: 0.8em;
+                                        padding: 0.1em 0.2em;
+                                        border-bottom: 1px solid
+                                            rgba(255, 255, 255, 0.3);
+                                        font-weight: 600;
+                                    }
+
+                                    .content {
+                                        font-size: 1em;
+                                        padding: 0.8em 1em;
+                                        line-height: 1.5;
+                                    }
+
+                                    .indicator {
+                                        color: #87ceeb;
+                                    }
+                                }
+                            }
+    
+                            .stand {
+                                color: rgb(165, 47, 47);
+                                font-weight: bold;
+                            }
+    
+                            .item {
+                                color: rgb(47, 165, 47);
+                                font-weight: bold;
+                            }
+
+                            
+                        </vn-style>
+                        </text-box>
+                    </vn-assets>
+                </vn-project>
+
+                <vn-scene textbox="default">
+                    <vn-script src="./test.vn.js"></vn-script>
+                </vn-scene>
+
+                
+            </visual-novel>
+
+
+        </div>
+    </body>
+</html>

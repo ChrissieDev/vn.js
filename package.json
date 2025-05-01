@@ -1,0 +1,16 @@
+{
+    "name": "vn.js",
+    "version": "0.1",
+    "main": "vn.js",
+    "type": "module",
+    "directories": {
+        "lib": "src"
+    },
+    "scripts": {
+        "test": "echo \"This is a browser-based library, it does not have a test nor build system!\" && exit 0"
+    },
+    "keywords": [],
+    "author": "mkgiga",
+    "license": "MIT",
+    "description": "A pure-js, zero-dependencies visual novel engine and player for the web."
+}
