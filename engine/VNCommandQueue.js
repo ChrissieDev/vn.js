@@ -281,8 +281,18 @@ export default class VNCommandQueue {
         this.#propagateSceneToCommand(command);
 
         let continueExecution = true;
+
         try {
-            continueExecution = command.execute();
+            const res = command.execute();
+            if (res instanceof Promise) {
+                res.then(() => {
+                    this.i++;
+                    this.player.continueExecution();
+                });
+                continueExecution = false; // Pause execution until the promise resolves
+            } else {
+                continueExecution = res;
+            }
         } catch (error) {
             console.error(
                 `%cError executing command [${this.i}] ${command.constructor.name}:`,

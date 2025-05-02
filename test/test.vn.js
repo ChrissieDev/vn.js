@@ -12,7 +12,7 @@ const fadeIn = ANIMATION(
         { opacity: 1 }
     ],
     {
-        duration: 1000,
+        duration: 4000,
         easing: 'ease-in-out',
         fill: 'forwards',
     },
@@ -28,20 +28,65 @@ const testScene = SCENE(
         style: `opacity: 0;`,
     }),
 
+    $(() => {
+        haruka.reputation = {
+            you: 50,
+        };
+    }),
+
     ADD.IMAGE(`back-of-classroom-day`),
     
     haruka
-    `Hey, It's me again, ${haruka.NAME}...`,
     `Hey, ${user}, do you have a moment?`,
 
-    haruka.ANIMATE(fadeIn),
+    haruka.animate(fadeIn, {
+        wait: true,
+    }),
     
     haruka
-    `I was thinking about what we talked about the other day.`,
+    `I've been thinking lately... Um...`,
 
-    
+    TEXT
+    `It's apparent that Haruka is trying to get something off her chest. You can tell by the way she fidgets with her hands and avoids eye contact.`,
 
+    haruka
+    `Well, you know how you borrowed my Dora the Explorer sneakers?`,
+    `It's just that... It's been three weeks and like, um...`,
 
+    TEXT
+    `She looks like she might burst into tears any second now.`,
+
+    you
+    `I said I'd return them, didn't I?!`,
+    `Are you really going to cry over a pair of sneakers?`, // multiple lines by 'you' cause it to be treated as monologue, need fix
+
+    $(() => {
+        haruka.reputation.you -= 40;
+    }),
+
+    haruka
+    `Uh... I... Um...`,
+
+    you
+    `I said I'd return them, didn't I?!`,
+
+    haruka
+    `I know, but...`,
+
+    you
+    `They're not even cute, and they weren't my size so I threw them out.`,
+
+    haruka
+    `You threw them out?!`,
+
+    TEXT
+    `Haruka's eyes widen in disbelief. She begins to sob.`,
+
+    you
+    `Not this bullshiiit again...`,
+
+    haruka
+    `How could you... How could you do something like that...?`,
 )
 
 // Testing to see what value SCENE(...) returns

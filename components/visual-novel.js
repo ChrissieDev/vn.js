@@ -596,17 +596,23 @@ export default class VNPlayerElement extends HTMLElement {
 
         actorFunc.animate = (...args) => {
             console.log(`API: Building VNCommandAnimate for ${uid}.`);
+            let wait = false;
+
             let animation = null;
             if (args[0] instanceof VNAnimation) {
                 animation = args[0];
                 if (args.length === 2) {
-                    const options = args[1] || {};
-                    if (typeof options !== "object") {
+                    const animateOptions = args[1] || {};
+
+                    if (typeof animateOptions !== "object") {
                         console.error(
                             `Actor function ANIMATE() called with invalid arguments: ${args}. Expected object for options.`
                         );
                         return null;
                     }
+
+                    wait = animateOptions.wait || false;
+                    const options = animateOptions.options || {};
 
                     animation.overrideOptions(options);
                 }
@@ -633,12 +639,13 @@ export default class VNPlayerElement extends HTMLElement {
                 
                 return null;
             }
-            
+            console.log(`\x1b[31mAPI: ANIMATE called for ${uid} with wait: ${wait}\x1b[0m`);
             return new VNCommandAnimate(
                 // this is null at this point because play() hasn't been called yet.
                 this.#currentQueue,
                 actorFunc.definition,
-                animation
+                animation,
+                wait
             )
         }
 
@@ -821,7 +828,7 @@ export default class VNPlayerElement extends HTMLElement {
             actorUid: "you",
             actorName: "You",
             text: text.trim(),
-            isMonologue: true,
+            isMonologue: false,
         };
     };
 

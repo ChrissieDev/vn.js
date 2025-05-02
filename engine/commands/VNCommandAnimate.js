@@ -4,7 +4,7 @@ import VNCommand from "../VNCommand.js";
 
 export default class VNCommandAnimate extends VNCommand {
     type = 'animate';
-
+    #wait = false;
     /**
      * @type {Element | string}
      */
@@ -21,7 +21,7 @@ export default class VNCommandAnimate extends VNCommand {
      * @param {Element | string} target The target element or element uid to animate.
      * @param {VNAnimation} animation The animation to execute on the target.
      */
-    constructor(queue, target, animation) {
+    constructor(queue, target, animation, wait = false) {
         super(queue);
 
         if (!(animation instanceof VNAnimation)) {
@@ -34,6 +34,7 @@ export default class VNCommandAnimate extends VNCommand {
 
         this.#target = target;
         this.#animation = animation;
+        this.#wait = wait; // Set the wait property based on the argument
     }
     
 
@@ -55,15 +56,22 @@ export default class VNCommandAnimate extends VNCommand {
             console.error(`VNCommandAnimation: Target element not found for UID "${this.#target}".`);
             return true; // Skip command if target is missing
         }
+        console.log("API: Wait is set to", this.wait);
 
-        if (this.#animation) {
-            this.#animation.animate(target, () => {
-                console.log("Animation finished.");
+        if (this.#wait) {
+            return new Promise((resolve) => {
+                this.#animation.animate(target, () => {
+                    console.log("API: Animation finished.");
+                    resolve(); // Resolve the promise when the animation finishes
+                });
             });
-        } else {
-            console.error("VNCommandAnimate: No animation to execute.");
         }
+    
+        
+        this.#animation.animate(target).then(() => {
+            console.log("API: Animation finished.");
+        });
 
-        return true;
+        return true; // Return true to indicate the command has been executed
     }
 }
