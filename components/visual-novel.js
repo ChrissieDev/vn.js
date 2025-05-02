@@ -1,11 +1,14 @@
 /**
- * @file visual-novel.js
- * Implements the VNPlayerElement custom element.
- * The main container for the visual novel player interface and the <vn-project> element holding the project data and assets like actors, textboxes, etc.
+ * @file /components/visual-novel.js
  */
 
 import VNCommandQueue from "../engine/VNCommandQueue.js";
 
+/**
+ * @summary This is the top-level element for the visual novel engine.
+ * It is responsible for loading the project data and assets, and hosting the <vn-scene> element where the state is rendered at runtime.
+ * It also provides the runtime context for the VN script to execute in. VN Scripts are run by adding a <vn-script> element to the <vn-scene>.
+ */
 export default class VNPlayerElement extends HTMLElement {
     #projectElement = null;
     #sceneElement = null;
@@ -16,6 +19,10 @@ export default class VNPlayerElement extends HTMLElement {
     #executionPaused = false;
     isPlaying = false;
 
+    /**
+     * Holds all actor functions created by the VNPlayerElement so actors may be referenced by their UID in the script at runtime.
+     * The #runtime object has a reference to each actor function by its UID. They should not collide with any other properties in the runtime object.
+     */
     #actorFunctions = new Map();
 
     constructor() {
@@ -443,6 +450,9 @@ export default class VNPlayerElement extends HTMLElement {
 
         this.#actorFunctions.clear();
 
+        // WTF? why are we storing the api in the player itself
+        // we have to clean up google gemini's mess
+        // this runtime_ prefix needs to go. let's just create a #runtimeBase object where the functions are defined.
         this.#runtime.player = this;
         this.#runtime.SCENE = this.#runtime_SCENE;
         this.#runtime.play = this.#runtime_play;
@@ -480,14 +490,31 @@ export default class VNPlayerElement extends HTMLElement {
                 `Found ${actorDefs.length} actor definitions in <vn-assets>.`
             );
 
+            // Build any actor functions that are missing from the runtime.
             for (const actorDef of actorDefs) {
                 const uid = actorDef.getAttribute("uid");
                 const name = actorDef.getAttribute("name") || uid;
                 
-                if (uid) {
-                    this.#ensureActorFunction(uid, name);
+                // Does the actor function already exist in the runtime?
+                if (uid && !this.#runtime[uid]) {
+                    const actorFunction = this.#createActorFunction(uid, name);
+                    
+                    // The Map holds a reference to all actor functions so if we want to remove all actor functions from the runtime, 
+                    // we iterate over the Map and remove them from the runtime (and the Map).
+                    // This should keep all other properties if needed.
+                    this.#actorFunctions.set(uid, actorFunction);
+                    this.#runtime[uid] = actorFunction;
+
+                } else {
+                    console.warn(
+                        `Refusing to overwrite existing actor function for actor "${uid}" as one already exists within the script's context.`
+                    );
                 }
             };
+        } else {
+            throw new ReferenceError(
+                `No instance of <vn-assets> found in the project. Your <vn-project> must contain a <vn-assets> element!`
+            );
         }
 
         console.log("Runtime properties prepared:", Object.keys(this.#runtime));
@@ -507,53 +534,29 @@ export default class VNPlayerElement extends HTMLElement {
             );
         }
     }
+    
+    #createActorFunction(uid, displayName) {
+        console.log(
+            `Creating runtime function for actor: ${uid} (Display: ${displayName})`
+        );
 
-    /**
-     * Builds a function for the actor with the given uid.
-     * This is also where the per-actor API is defined.
-     */
-    #ensureActorFunction(uid, displayName) {
-
-        if (!this.#runtime[uid]) {
-            console.log(
-                `Creating runtime function for actor: ${uid} (Display: ${displayName})`
+        const actorFunc = (strings, ...values) => {
+            const text = strings.reduce(
+                (acc, str, i) => acc + str + (values[i] || ""),
+                ""
             );
 
-            const actorFunc = (strings, ...values) => {
-                const text = strings.reduce(
-                    (acc, str, i) => acc + str + (values[i] || ""),
-                    ""
-                );
-
-                return {
-                    type: "say",
-                    actorUid: uid,
-                    actorName: displayName || uid,
-                    text: text.trim(),
-                };
-
+            return {
+                type: "say",
+                actorUid: uid,
+                actorName: displayName || uid,
+                text: text.trim(),
             };
 
-            this.#runtime[uid] = actorFunc;
-            this.#actorFunctions.set(uid, actorFunc);
-        }
+        };
+
+        return actorFunc;
     }
-
-    #removeActorFunction(uid) {
-        if (this.#runtime[uid]) {
-            console.log(`Removing runtime function for actor: ${uid}`);
-            delete this.#runtime[uid];
-        }
-        if (this.#actorFunctions.has(uid)) {
-            this.#actorFunctions.delete(uid);
-        }
-    }
-
-    #handleActorAdded = (event) => {
-    };
-
-    #handleActorRemoved = (event) => {
-    };
 
     #runtime_SCENE = (...commands) => {
         console.log("API: SCENE called");
@@ -743,8 +746,19 @@ export default class VNPlayerElement extends HTMLElement {
         }
     };
 
+    /** 
+     * @todo Define all the `runtime_` prefixed methods in here instead without the prefix.
+     * This is also good to check which names collide with the runtime API.
+     */
+    #runtimeBase = {
+
+    }
+
+    /**
+     * The context in which scripts are run in. The entire API exists here at runtime.
+     */
     #runtime = {
- player: this,
+        player: this,
         _lastPlayedQueue: null,
     };
 }
