@@ -420,7 +420,13 @@ export default class VNPlayerElement extends HTMLElement {
         }
     };
 
-
+    /**
+     * Builds the runtime context for scripts to execute in.
+     * The main API is defined here.
+     * 
+     * @todo Refactor be more structured, perhaps define it in some private property #runtimeBase
+     * so we can just copy it over to #runtime.
+     */
     #prepareRuntimeContext() {
         console.log("Preparing runtime context...");
 
@@ -502,7 +508,12 @@ export default class VNPlayerElement extends HTMLElement {
         }
     }
 
+    /**
+     * Builds a function for the actor with the given uid.
+     * This is also where the per-actor API is defined.
+     */
     #ensureActorFunction(uid, displayName) {
+
         if (!this.#runtime[uid]) {
             console.log(
                 `Creating runtime function for actor: ${uid} (Display: ${displayName})`
