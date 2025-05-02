@@ -1,4 +1,3 @@
-import VNCommandQueue from './VNCommandQueue.js';
 
 /**
  * @summary
@@ -10,7 +9,7 @@ export default class VNCommand {
 
     /**
      * Owner VNCommandQueue context. Is set by VNCommandQueue during parsing/execution
-     * @type {VNCommandQueue}
+     * @type {import("./VNCommandQueue").default}
      */
     queue = null;
 
@@ -18,11 +17,11 @@ export default class VNCommand {
      * All commands must have a type identifier in order to be serialized/deserialized to/from JSON.
      * @type {string}
      */
-    type = 'base';
+    type = "none"; // Must be set by subclasses
 
     constructor(queue = null) { 
         this.queue = queue;
-        
+                
         if (typeof this.type !== 'string') {
             throw new Error(`
                 VNCommand type must be a string, got \`${typeof this.type}\`!
