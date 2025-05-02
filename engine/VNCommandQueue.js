@@ -9,6 +9,8 @@ import VNCommandStart from "./commands/VNCommandStart.js";
 import VNCommandSay from "./commands/VNCommandSay.js";
 import VNCommandAddObject from "./commands/VNCommandAddObject.js";
 import VNCommandSetActorState from "./commands/VNCommandSetActorState.js";
+import VNCommandPick from "./commands/VNCommandPick.js";
+import VNCommandChoice from "./commands/VNCommandChoice.js"; //added import for choice & pick commands
 
 export default class VNCommandQueue {
     i = 0;
@@ -149,6 +151,25 @@ export default class VNCommandQueue {
              case 'error':
                  console.error("Scripting Error reported via command:", commandObject.message || "No message provided.", commandObject);
                  return null;
+            case 'PICK':
+                console.log("Parsing PICK object:", commandObject); // Logs the incoming object
+                if (Array.isArray(commandObject.choices)) {
+                    commandObject.choices.forEach((c, index) => {
+                        console.log(`Choice ${index} instanceof VNCommandChoice:`, c instanceof VNCommandChoice, c); // Log each choice
+                    });
+                }
+                // The original check:
+                if (!Array.isArray(commandObject.choices) || commandObject.choices.some(c => !(c instanceof VNCommandChoice))) {
+                    console.error("VNQ Parse Error: Invalid 'PICK' object structure. Requires an array of VNCommandChoice objects.", commandObject);
+                    return null;
+                }
+                return new VNCommandPick(this, commandObject.choices);
+            case 'CHOICE':
+                if (typeof commandObject.text !== 'string' || !(commandObject.commandsQueue instanceof VNCommandQueue)) {
+                    console.error("VNQ Parse Error: Invalid 'CHOICE' object structure. Requires text (string) and commandsQueue (VNCommandQueue).", commandObject);
+                    return null;
+                }
+                return new VNCommandChoice(this, commandObject.text, commandObject.commandsQueue);
             default:
                 console.warn(`VNQ Parse: Unknown API object type "${commandObject.type}"`, commandObject);
                 return null;
