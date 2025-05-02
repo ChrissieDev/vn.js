@@ -427,11 +427,12 @@ export default class VNPlayerElement extends HTMLElement {
         if (!this.#runtime) {
             this.#runtime = { player: this, _lastPlayedQueue: null };
         } else {
-            Object.keys(this.#runtime).forEach((key) => {
+
+            for (const key in Object.keys(this.#runtime)) {
                 if (key !== "player" && key !== "_lastPlayedQueue") {
                     delete this.#runtime[key];
                 }
-            });
+            }
         }
 
         this.#actorFunctions.clear();
@@ -458,6 +459,7 @@ export default class VNPlayerElement extends HTMLElement {
         });
 
         const assets = this.#projectElement?.getAssetsElement();
+
         if (assets) {
             this.#ensureDefaultActorAsset(assets, "you", "You");
         } else {
@@ -471,13 +473,15 @@ export default class VNPlayerElement extends HTMLElement {
             console.log(
                 `Found ${actorDefs.length} actor definitions in <vn-assets>.`
             );
-            actorDefs.forEach((actorDef) => {
+
+            for (const actorDef of actorDefs) {
                 const uid = actorDef.getAttribute("uid");
                 const name = actorDef.getAttribute("name") || uid;
+                
                 if (uid) {
                     this.#ensureActorFunction(uid, name);
                 }
-            });
+            };
         }
 
         console.log("Runtime properties prepared:", Object.keys(this.#runtime));
@@ -503,18 +507,22 @@ export default class VNPlayerElement extends HTMLElement {
             console.log(
                 `Creating runtime function for actor: ${uid} (Display: ${displayName})`
             );
+
             const actorFunc = (strings, ...values) => {
                 const text = strings.reduce(
                     (acc, str, i) => acc + str + (values[i] || ""),
                     ""
                 );
+
                 return {
                     type: "say",
                     actorUid: uid,
                     actorName: displayName || uid,
                     text: text.trim(),
                 };
+
             };
+
             this.#runtime[uid] = actorFunc;
             this.#actorFunctions.set(uid, actorFunc);
         }
