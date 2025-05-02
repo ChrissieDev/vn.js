@@ -35,7 +35,8 @@ const testScene = SCENE(
     }),
 
     ADD.IMAGE(`back-of-classroom-day`),
-    
+    // SELECT(`back-of-classroom-day`).animate(fadeIn, { wait: true }),
+       
     haruka
     `Hey, ${user}, do you have a moment?`,
 
@@ -47,7 +48,7 @@ const testScene = SCENE(
     `I've been thinking lately... Um...`,
 
     TEXT
-    `It's apparent that Haruka is trying to get something off her chest. You can tell by the way she fidgets with her hands and avoids eye contact.`,
+    `It's apparent that Haruka is trying to get something off her chest---You can tell by the way she fidgets with her hands and avoids eye contact.`,
 
     haruka
     `Well, you know how you borrowed my Dora the Explorer sneakers?`,

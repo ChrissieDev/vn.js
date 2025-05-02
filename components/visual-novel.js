@@ -472,6 +472,7 @@ export default class VNPlayerElement extends HTMLElement {
         this.#runtime.RUN = this.#runtime_RUN;
         this.#runtime.ANIMATE = this.#runtime_ANIMATE;
         this.#runtime.ANIMATION = this.#runtime_ANIMATION;
+        this.#runtime.SELECT = this.#runtime_SELECT;
 
 
         Object.defineProperty(this.#runtime, "innerHTML", {
@@ -677,6 +678,26 @@ export default class VNPlayerElement extends HTMLElement {
             return null;
         }
     };
+
+    #runtime_SELECT = (uid) => {
+        console.log("API: SELECT called with uid:", uid);
+
+        if (typeof uid !== "string") {
+            console.error("API: SELECT Error: uid must be a string.");
+            return null;
+        }
+
+        // find the element in the scene
+        const element = this.#sceneElement.querySelector(`[uid="${uid}"]`);
+
+        if (!element) {
+            console.error(
+                `API: SELECT Error: Element with uid "${uid}" not found in the scene.`
+            );
+        }
+
+        return element;
+    }
 
     #runtime_play = (sceneQueue) => {
         console.log("API: play called with argument:", sceneQueue);

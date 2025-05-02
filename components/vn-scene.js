@@ -4,28 +4,38 @@
  * This element acts as the main stage, organizing backgrounds, foregrounds, actors, and textboxes.
  * It also manages ambient lighting effects based on tagged images and can use a default textbox definition.
  */
-import './vn-actor.js';
-import VNTextboxElement from './text-box.js';
+import "./vn-actor.js";
+import VNTextboxElement from "./text-box.js";
 
 /** Converts RGB color value to HSL. */
 function rgbToHsl(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0, l = (max + min) / 2;
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b),
+        min = Math.min(r, g, b);
+    let h = 0,
+        s = 0,
+        l = (max + min) / 2;
 
     if (max !== min) {
         const d = max - min;
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
+            case r:
+                h = (g - b) / d + (g < b ? 6 : 0);
+                break;
+            case g:
+                h = (b - r) / d + 2;
+                break;
+            case b:
+                h = (r - g) / d + 4;
+                break;
         }
         h /= 6;
     }
     return { h: h * 360, s: s, l: l };
 }
-
 
 export default class VNSceneElement extends HTMLElement {
     #sceneElement = null;
@@ -36,11 +46,11 @@ export default class VNSceneElement extends HTMLElement {
     #observer = null;
     #playerPromise = null;
     #ambientSourceElement = null;
-    #currentAmbientFilter = 'none';
+    #currentAmbientFilter = "none";
     #isAnalyzingAmbient = false;
 
     static get observedAttributes() {
-        return ['textbox'];
+        return ["textbox"];
     }
 
     constructor() {
@@ -129,13 +139,20 @@ export default class VNSceneElement extends HTMLElement {
                 <div class="textboxes" part="textboxes-container"><slot name="textboxes"></slot></div>
             </div>
         `;
-        this.#sceneElement = this.shadowRoot.querySelector('.scene');
-        this.#imagesContainer = this.shadowRoot.querySelector('.images');
-        this.#mediaContainer = this.shadowRoot.querySelector('.media');
-        this.#actorsContainer = this.shadowRoot.querySelector('.actors');
-        this.#textboxesContainer = this.shadowRoot.querySelector('.textboxes');
-        this.#playerPromise = customElements.whenDefined('visual-novel');
+        this.#sceneElement = this.shadowRoot.querySelector(".scene");
+        this.#imagesContainer = this.shadowRoot.querySelector(".images");
+        this.#mediaContainer = this.shadowRoot.querySelector(".media");
+        this.#actorsContainer = this.shadowRoot.querySelector(".actors");
+        this.#textboxesContainer = this.shadowRoot.querySelector(".textboxes");
+        this.#playerPromise = customElements.whenDefined("visual-novel");
     }
+
+    /**
+     * All vn-asset added as instances to the scene receive a set of methods.
+     */
+    #instanceAPI = {
+        animate: (animation, options = {}) => {},
+    };
 
     async connectedCallback() {
         try {
@@ -143,8 +160,6 @@ export default class VNSceneElement extends HTMLElement {
             const initialChildren = Array.from(this.children);
             await this.#processAddedChildrenForUIDs(initialChildren);
             this.#updateAmbientSource();
-
-
         } catch (error) {
             console.error("Error during vn-scene initial processing:", error);
         }
@@ -155,43 +170,72 @@ export default class VNSceneElement extends HTMLElement {
             let ambientNeedsUpdate = false;
 
             for (const mutation of mutations) {
-                if (mutation.type === 'childList') {
+                if (mutation.type === "childList") {
                     for (const node of mutation.addedNodes) {
                         if (node.nodeType === Node.ELEMENT_NODE) {
                             nodesToAdd.push(node);
-                            if (node.matches?.('img[ambient]')) ambientNeedsUpdate = true;
+                            if (node.matches?.("img[ambient]"))
+                                ambientNeedsUpdate = true;
                         }
                     }
                     for (const node of mutation.removedNodes) {
-                         if (node.nodeType === Node.ELEMENT_NODE) {
-                             if (node.matches?.('img[ambient]')) {
-                                 ambientNeedsUpdate = true;
-                                if (node === this.#ambientSourceElement) this.#ambientSourceElement = null;
-                             }
-                         }
+                        if (node.nodeType === Node.ELEMENT_NODE) {
+                            if (node.matches?.("img[ambient]")) {
+                                ambientNeedsUpdate = true;
+                                if (node === this.#ambientSourceElement)
+                                    this.#ambientSourceElement = null;
+                            }
+                        }
                     }
-                } else if (mutation.type === 'attributes') {
+                } else if (mutation.type === "attributes") {
                     const targetElement = mutation.target;
                     const isDirectChild = targetElement.parentElement === this;
-                    const isSlotted = ['images', 'textboxes', 'media', ''].includes(targetElement.slot);
+                    const isSlotted = [
+                        "images",
+                        "textboxes",
+                        "media",
+                        "",
+                    ].includes(targetElement.slot);
                     const isSelf = targetElement === this;
 
                     if (isDirectChild || isSlotted || isSelf) {
                         const tagName = targetElement.tagName.toLowerCase();
                         const attrName = mutation.attributeName;
 
-                        if (attrName === 'uid') nodesToRecheck.push(targetElement);
-                        else if (attrName === 'ambient' && tagName === 'img') ambientNeedsUpdate = true;
-                        else if (attrName === 'data-ambient-filter' && tagName === 'img') ambientNeedsUpdate = true;
-                        else if (attrName === 'src' && tagName === 'img' && (targetElement === this.#ambientSourceElement || targetElement.hasAttribute('ambient'))) ambientNeedsUpdate = true;
-                        else if (attrName === 'slot') {
+                        if (attrName === "uid")
                             nodesToRecheck.push(targetElement);
-                            if (tagName === 'img' && targetElement.hasAttribute('ambient')) ambientNeedsUpdate = true;
+                        else if (attrName === "ambient" && tagName === "img")
+                            ambientNeedsUpdate = true;
+                        else if (
+                            attrName === "data-ambient-filter" &&
+                            tagName === "img"
+                        )
+                            ambientNeedsUpdate = true;
+                        else if (
+                            attrName === "src" &&
+                            tagName === "img" &&
+                            (targetElement === this.#ambientSourceElement ||
+                                targetElement.hasAttribute("ambient"))
+                        )
+                            ambientNeedsUpdate = true;
+                        else if (attrName === "slot") {
+                            nodesToRecheck.push(targetElement);
+                            if (
+                                tagName === "img" &&
+                                targetElement.hasAttribute("ambient")
+                            )
+                                ambientNeedsUpdate = true;
+                        } else if (
+                            attrName === "src" &&
+                            (tagName === "audio" || tagName === "video")
+                        )
+                            nodesToRecheck.push(targetElement);
+                        else if (attrName === "textbox" && isSelf) {
+                            console.log(
+                                "Scene: `textbox` attribute changed. New textboxes will use definition:",
+                                mutation.target.getAttribute("textbox")
+                            );
                         }
-                        else if (attrName === 'src' && (tagName === 'audio' || tagName === 'video')) nodesToRecheck.push(targetElement);
-                         else if (attrName === 'textbox' && isSelf) {
-                              console.log("Scene: `textbox` attribute changed. New textboxes will use definition:", mutation.target.getAttribute('textbox'));
-                         }
                     }
                 }
             }
@@ -199,17 +243,34 @@ export default class VNSceneElement extends HTMLElement {
             if (nodesToAdd.length > 0 || nodesToRecheck.length > 0) {
                 try {
                     await this.#playerPromise;
-                    await this.#processAddedChildrenForUIDs([...nodesToAdd, ...nodesToRecheck]);
-                } catch(error) { console.error("Error processing dynamic child changes:", error); }
+                    await this.#processAddedChildrenForUIDs([
+                        ...nodesToAdd,
+                        ...nodesToRecheck,
+                    ]);
+                } catch (error) {
+                    console.error(
+                        "Error processing dynamic child changes:",
+                        error
+                    );
+                }
             }
-            if (ambientNeedsUpdate && !this.#isAnalyzingAmbient) this.#updateAmbientSource();
+            if (ambientNeedsUpdate && !this.#isAnalyzingAmbient)
+                this.#updateAmbientSource();
         });
 
         this.#observer.observe(this, {
             childList: true,
             subtree: false,
             attributes: true,
-            attributeFilter: ['uid', 'ambient', 'data-ambient-filter', 'slot', 'src', 'textbox', 'style']
+            attributeFilter: [
+                "uid",
+                "ambient",
+                "data-ambient-filter",
+                "slot",
+                "src",
+                "textbox",
+                "style",
+            ],
         });
     }
 
@@ -218,56 +279,81 @@ export default class VNSceneElement extends HTMLElement {
             this.#observer.disconnect();
             this.#observer = null;
         }
-        this.#currentAmbientFilter = 'none';
+        this.#currentAmbientFilter = "none";
         this.#ambientSourceElement = null;
         this.#isAnalyzingAmbient = false;
         if (this.#actorsContainer) {
-            this.#actorsContainer.style.filter = 'none';
+            this.#actorsContainer.style.filter = "none";
         }
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
-         if (name === 'textbox') {
-              if (oldValue !== newValue) {
-              }
-         }
+        if (name === "textbox") {
+            if (oldValue !== newValue) {
+            }
+        }
     }
 
     #updateAmbientSource() {
         let newAmbientSource = null;
         const imagesSlot = this.shadowRoot.querySelector('slot[name="images"]');
         if (imagesSlot) {
-            const assignedImages = imagesSlot.assignedNodes({ flatten: true })
-                .filter(node => node.nodeType === Node.ELEMENT_NODE && node.matches('img[ambient][slot="images"]'));
+            const assignedImages = imagesSlot
+                .assignedNodes({ flatten: true })
+                .filter(
+                    (node) =>
+                        node.nodeType === Node.ELEMENT_NODE &&
+                        node.matches('img[ambient][slot="images"]')
+                );
 
             if (assignedImages.length > 0) {
                 newAmbientSource = assignedImages[0];
-                 if (assignedImages.length > 1) console.warn('<vn-scene>: Multiple <img ambient slot="images"> found. Using the first one.', newAmbientSource);
+                if (assignedImages.length > 1)
+                    console.warn(
+                        '<vn-scene>: Multiple <img ambient slot="images"> found. Using the first one.',
+                        newAmbientSource
+                    );
             }
         } else {
-             console.warn('<vn-scene>: Cannot find images slot for ambient source check.');
+            console.warn(
+                "<vn-scene>: Cannot find images slot for ambient source check."
+            );
         }
 
-
         if (newAmbientSource) {
-            const manualFilter = newAmbientSource.getAttribute('data-ambient-filter');
+            const manualFilter = newAmbientSource.getAttribute(
+                "data-ambient-filter"
+            );
             if (manualFilter) {
-                 if (manualFilter !== this.#currentAmbientFilter || newAmbientSource !== this.#ambientSourceElement) {
+                if (
+                    manualFilter !== this.#currentAmbientFilter ||
+                    newAmbientSource !== this.#ambientSourceElement
+                ) {
                     this.#ambientSourceElement = newAmbientSource;
                     this.#currentAmbientFilter = manualFilter;
                     this.#applyAmbientFilter();
                 }
             } else {
-                 const srcChanged = this.#ambientSourceElement && newAmbientSource.getAttribute('src') !== this.#ambientSourceElement.getAttribute('src');
-                 if (newAmbientSource !== this.#ambientSourceElement || this.#currentAmbientFilter === 'none' || srcChanged) {
+                const srcChanged =
+                    this.#ambientSourceElement &&
+                    newAmbientSource.getAttribute("src") !==
+                        this.#ambientSourceElement.getAttribute("src");
+                if (
+                    newAmbientSource !== this.#ambientSourceElement ||
+                    this.#currentAmbientFilter === "none" ||
+                    srcChanged
+                ) {
                     this.#ambientSourceElement = newAmbientSource;
                     this.#analyzeImageForAmbientFilter(newAmbientSource);
-                 }
+                }
             }
         } else {
-             if (this.#currentAmbientFilter !== 'none' || this.#ambientSourceElement !== null) {
+            if (
+                this.#currentAmbientFilter !== "none" ||
+                this.#ambientSourceElement !== null
+            ) {
                 this.#ambientSourceElement = null;
-                this.#currentAmbientFilter = 'none';
+                this.#currentAmbientFilter = "none";
                 this.#applyAmbientFilter();
             }
         }
@@ -278,37 +364,52 @@ export default class VNSceneElement extends HTMLElement {
         this.#isAnalyzingAmbient = true;
 
         const img = new Image();
-        const imageOrigin = new URL(imgElement.src, window.location.href).origin;
+        const imageOrigin = new URL(imgElement.src, window.location.href)
+            .origin;
         if (imageOrigin !== window.location.origin) {
-             if (!imgElement.hasAttribute('crossorigin')) {
-                 console.warn("VN-Scene: Ambient image is cross-origin and lacks 'crossorigin' attribute. Analysis may fail. Setting to 'Anonymous'.", imgElement.src);
-                 img.crossOrigin = "Anonymous";
-             } else {
-                 img.crossOrigin = imgElement.getAttribute('crossorigin');
-             }
-        } else if (imgElement.hasAttribute('crossorigin')) {
-             img.crossOrigin = imgElement.getAttribute('crossorigin');
+            if (!imgElement.hasAttribute("crossorigin")) {
+                console.warn(
+                    "VN-Scene: Ambient image is cross-origin and lacks 'crossorigin' attribute. Analysis may fail. Setting to 'Anonymous'.",
+                    imgElement.src
+                );
+                img.crossOrigin = "Anonymous";
+            } else {
+                img.crossOrigin = imgElement.getAttribute("crossorigin");
+            }
+        } else if (imgElement.hasAttribute("crossorigin")) {
+            img.crossOrigin = imgElement.getAttribute("crossorigin");
         }
         img.src = imgElement.src;
 
-        let generatedFilter = 'none';
+        let generatedFilter = "none";
         try {
             await img.decode();
-            const canvas = document.createElement('canvas');
+            const canvas = document.createElement("canvas");
             const canvasSize = 50;
-            canvas.width = canvasSize; canvas.height = canvasSize;
-            const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-            if (!ctx) throw new Error("Could not get 2D canvas context for ambient analysis.");
+            canvas.width = canvasSize;
+            canvas.height = canvasSize;
+            const ctx = canvas.getContext("2d", {
+                alpha: false,
+                willReadFrequently: true,
+            });
+            if (!ctx)
+                throw new Error(
+                    "Could not get 2D canvas context for ambient analysis."
+                );
 
             ctx.drawImage(img, 0, 0, canvasSize, canvasSize);
             const imageData = ctx.getImageData(0, 0, canvasSize, canvasSize);
             const data = imageData.data;
-            let rSum = 0, gSum = 0, bSum = 0;
+            let rSum = 0,
+                gSum = 0,
+                bSum = 0;
             const pixelCount = data.length / 4;
 
             if (pixelCount > 0) {
                 for (let i = 0; i < data.length; i += 4) {
-                    rSum += data[i]; gSum += data[i+1]; bSum += data[i+2];
+                    rSum += data[i];
+                    gSum += data[i + 1];
+                    bSum += data[i + 2];
                 }
                 const avgR = Math.round(rSum / pixelCount);
                 const avgG = Math.round(gSum / pixelCount);
@@ -317,213 +418,345 @@ export default class VNSceneElement extends HTMLElement {
 
                 const brightness = (0.8 + hsl.l * 0.3).toFixed(2);
                 const saturation = (0.8 + hsl.s * 0.4).toFixed(2);
-                let sepia = (hsl.h >= 15 && hsl.h <= 65 && hsl.s > 0.15) ? (hsl.s * 0.15 + 0.05).toFixed(2) : 0;
+                let sepia =
+                    hsl.h >= 15 && hsl.h <= 65 && hsl.s > 0.15
+                        ? (hsl.s * 0.15 + 0.05).toFixed(2)
+                        : 0;
 
                 generatedFilter = `brightness(${brightness}) saturate(${saturation})`;
                 if (sepia > 0) generatedFilter += ` sepia(${sepia})`;
-            } else { console.warn("VN-Scene: Could not analyze ambient image (no pixels?)."); }
-
+            } else {
+                console.warn(
+                    "VN-Scene: Could not analyze ambient image (no pixels?)."
+                );
+            }
         } catch (error) {
-             if (error instanceof SecurityError) {
-                console.error(`VN-Scene: SecurityError analyzing ambient image (likely CORS). Ensure image server sends 'Access-Control-Allow-Origin' header or image has 'crossorigin="anonymous"'. Src: ${imgElement.src}`, error);
-             } else {
-                console.error(`VN-Scene: Error analyzing ambient image src: ${imgElement.src}`, error);
-             }
-            generatedFilter = 'none';
-        }
-        finally {
-             if (this.#ambientSourceElement === imgElement) {
-                 this.#currentAmbientFilter = generatedFilter;
-                 this.#applyAmbientFilter();
-             }
+            if (error instanceof SecurityError) {
+                console.error(
+                    `VN-Scene: SecurityError analyzing ambient image (likely CORS). Ensure image server sends 'Access-Control-Allow-Origin' header or image has 'crossorigin="anonymous"'. Src: ${imgElement.src}`,
+                    error
+                );
+            } else {
+                console.error(
+                    `VN-Scene: Error analyzing ambient image src: ${imgElement.src}`,
+                    error
+                );
+            }
+            generatedFilter = "none";
+        } finally {
+            if (this.#ambientSourceElement === imgElement) {
+                this.#currentAmbientFilter = generatedFilter;
+                this.#applyAmbientFilter();
+            }
             this.#isAnalyzingAmbient = false;
         }
     }
 
     #applyAmbientFilter() {
         if (this.#actorsContainer) {
-            this.#actorsContainer.style.setProperty('--vn-ambient-filter', this.#currentAmbientFilter);
+            this.#actorsContainer.style.setProperty(
+                "--vn-ambient-filter",
+                this.#currentAmbientFilter
+            );
         }
     }
 
     /** Processes child elements, assigning slots and configuring UID-based instances. */
     async #processAddedChildrenForUIDs(children) {
         await this.#playerPromise;
+
         const player = this.player;
-        if (!player || typeof player.getAssetDefinition !== 'function') {
+
+        if (!player || typeof player.getAssetDefinition !== "function") {
             console.error("vn-scene cannot find player or player methods.");
             return;
         }
+
         let potentiallyChangedAmbient = false;
 
         for (const child of children) {
-            if (!(child instanceof HTMLElement) || child.hasAttribute('data-vn-processed')) continue;
+            if (
+                !(child instanceof HTMLElement) ||
+                child.hasAttribute("data-vn-processed")
+            )
+                continue;
 
-            child.setAttribute('data-vn-processed', '');
+            child.setAttribute("data-vn-processed", "");
 
             const tagNameLower = child.tagName.toLowerCase();
             let expectedSlot = null;
-            let isUidBased = child.hasAttribute('uid');
+            let isUidBased = child.hasAttribute("uid");
             let definition = null;
 
-            if (tagNameLower === 'img') expectedSlot = 'images';
-            else if (tagNameLower === 'vn-actor') expectedSlot = '';
-            else if (tagNameLower === 'text-box') expectedSlot = 'textboxes';
-            else if (tagNameLower === 'audio' || tagNameLower === 'video') expectedSlot = 'media';
-             else {
-                  expectedSlot = child.slot || '';
-             }
-
+            if (tagNameLower === "img") expectedSlot = "images";
+            else if (tagNameLower === "vn-actor") expectedSlot = "";
+            else if (tagNameLower === "text-box") expectedSlot = "textboxes";
+            else if (tagNameLower === "audio" || tagNameLower === "video")
+                expectedSlot = "media";
+            else {
+                expectedSlot = child.slot || "";
+                for (const apiProp in this.#instanceAPI) {
+                    // assign property to added node
+                    Object.defineProperty(child, apiProp, {
+                        get: () => this.#instanceAPI[apiProp],
+                        set: (value) => {
+                            throw new Error(
+                                `Cannot set ${apiProp} on VNSceneElement instance.`
+                            );
+                        },
+                        enumerable: true,
+                        configurable: true,
+                    });
+                }
+            }
 
             if (expectedSlot !== null && child.slot !== expectedSlot) {
                 child.slot = expectedSlot;
-                if (tagNameLower === 'img' && child.hasAttribute('ambient')) potentiallyChangedAmbient = true;
+                if (tagNameLower === "img" && child.hasAttribute("ambient"))
+                    potentiallyChangedAmbient = true;
             }
 
             if (isUidBased) {
-                const uid = child.getAttribute('uid');
+                const uid = child.getAttribute("uid");
                 definition = player.getAssetDefinition(uid);
 
                 if (!definition) {
-                    console.error(`vn-scene: Asset definition not found for uid "${uid}". Hiding element.`, child);
-                    child.style.display = 'none';
-                    child.removeAttribute('data-vn-processed');
+                    console.error(
+                        `vn-scene: Asset definition not found for uid "${uid}". Hiding element.`,
+                        child
+                    );
+                    child.style.display = "none";
+                    child.removeAttribute("data-vn-processed");
                     continue;
                 }
                 const defTagName = definition.tagName.toLowerCase();
                 if (tagNameLower !== defTagName) {
-                    console.error(`vn-scene: Mismatched tags for uid "${uid}". Scene: <${tagNameLower}>, Def: <${defTagName}>. Hiding element.`, child);
-                    child.style.display = 'none';
-                    child.removeAttribute('data-vn-processed');
+                    console.error(
+                        `vn-scene: Mismatched tags for uid "${uid}". Scene: <${tagNameLower}>, Def: <${defTagName}>. Hiding element.`,
+                        child
+                    );
+                    child.style.display = "none";
+                    child.removeAttribute("data-vn-processed");
                     continue;
                 }
 
                 try {
-                    if (tagNameLower === 'img') {
+                    if (tagNameLower === "img") {
                         this.#configureImageInstance(child, definition);
-                        if (child.hasAttribute('ambient')) potentiallyChangedAmbient = true;
-                    } else if (tagNameLower === 'vn-actor') {
-                         if (typeof child.ensureInitialized === 'function' && !child.isInitialized) {
-                             child.ensureInitialized().catch(e => console.error(`Scene: Error during ensureInitialized for actor ${uid}`, e));
-                         }
-                    } else if (tagNameLower === 'text-box') {
-                         if (!child.hasAttribute('ref') && definition.hasAttribute('uid')) {
-                              child.setAttribute('ref', definition.getAttribute('uid'));
-                         }
-                         if (typeof child.ensureInitialized === 'function' && !child.isInitialized) {
-                              child.ensureInitialized().catch(e => console.error(`Scene: Error during ensureInitialized for textbox ${uid}`, e));
-                         }
-                    } else if (tagNameLower === 'audio' || tagNameLower === 'video') {
+                        if (child.hasAttribute("ambient"))
+                            potentiallyChangedAmbient = true;
+                    } else if (tagNameLower === "vn-actor") {
+                        if (
+                            typeof child.ensureInitialized === "function" &&
+                            !child.isInitialized
+                        ) {
+                            child
+                                .ensureInitialized()
+                                .catch((e) =>
+                                    console.error(
+                                        `Scene: Error during ensureInitialized for actor ${uid}`,
+                                        e
+                                    )
+                                );
+                        }
+                    } else if (tagNameLower === "text-box") {
+                        if (
+                            !child.hasAttribute("ref") &&
+                            definition.hasAttribute("uid")
+                        ) {
+                            child.setAttribute(
+                                "ref",
+                                definition.getAttribute("uid")
+                            );
+                        }
+                        if (
+                            typeof child.ensureInitialized === "function" &&
+                            !child.isInitialized
+                        ) {
+                            child
+                                .ensureInitialized()
+                                .catch((e) =>
+                                    console.error(
+                                        `Scene: Error during ensureInitialized for textbox ${uid}`,
+                                        e
+                                    )
+                                );
+                        }
+                    } else if (
+                        tagNameLower === "audio" ||
+                        tagNameLower === "video"
+                    ) {
                         this.#configureMediaInstance(child, definition);
-                    } else if (tagNameLower === 'style') {
+                    } else if (tagNameLower === "style") {
                         this.#handleAddStyleElement(child, definition);
                     }
                 } catch (error) {
-                     console.error(`vn-scene: Error configuring instance ${uid} from definition:`, error, child);
-                     child.style.display = 'none';
+                    console.error(
+                        `vn-scene: Error configuring instance ${uid} from definition:`,
+                        error,
+                        child
+                    );
+                    child.style.display = "none";
                 }
             } else {
-                 if (tagNameLower === 'vn-actor') { console.warn("<vn-actor> without uid in <vn-scene> will not be configured from assets.", child); }
-                 else if (tagNameLower === 'img' && child.hasAttribute('ambient')) { potentiallyChangedAmbient = true; }
+                if (tagNameLower === "vn-actor") {
+                    console.warn(
+                        "<vn-actor> without uid in <vn-scene> will not be configured from assets.",
+                        child
+                    );
+                } else if (
+                    tagNameLower === "img" &&
+                    child.hasAttribute("ambient")
+                ) {
+                    potentiallyChangedAmbient = true;
+                }
             }
 
-            child.removeAttribute('data-vn-processed');
-
+            child.removeAttribute("data-vn-processed");
         }
 
         if (potentiallyChangedAmbient && !this.#isAnalyzingAmbient) {
-             requestAnimationFrame(() => this.#updateAmbientSource());
+            requestAnimationFrame(() => this.#updateAmbientSource());
         }
     }
 
-
     #configureImageInstance(instance, definition) {
-         instance.slot = 'images';
-        const defSrc = definition.getAttribute('src');
-        if (defSrc && instance.getAttribute('src') !== defSrc) {
-             instance.setAttribute('src', defSrc);
-             if (instance === this.#ambientSourceElement) potentiallyChangedAmbient = true;
+        instance.slot = "images";
+        const defSrc = definition.getAttribute("src");
+        if (defSrc && instance.getAttribute("src") !== defSrc) {
+            instance.setAttribute("src", defSrc);
+            if (instance === this.#ambientSourceElement)
+                potentiallyChangedAmbient = true;
         }
-        const instanceAttrs = new Set(Array.from(instance.attributes, attr => attr.name.toLowerCase()));
-        const attrsToCopy = ['alt', 'crossorigin', 'loading', 'ambient', 'data-ambient-filter'];
+        const instanceAttrs = new Set(
+            Array.from(instance.attributes, (attr) => attr.name.toLowerCase())
+        );
+        const attrsToCopy = [
+            "alt",
+            "crossorigin",
+            "loading",
+            "ambient",
+            "data-ambient-filter",
+        ];
         for (const attrName of attrsToCopy) {
-            if (definition.hasAttribute(attrName) && !instanceAttrs.has(attrName)) {
-                 instance.setAttribute(attrName, definition.getAttribute(attrName));
-                 if (attrName === 'ambient') potentiallyChangedAmbient = true;
+            if (
+                definition.hasAttribute(attrName) &&
+                !instanceAttrs.has(attrName)
+            ) {
+                instance.setAttribute(
+                    attrName,
+                    definition.getAttribute(attrName)
+                );
+                if (attrName === "ambient") potentiallyChangedAmbient = true;
             }
         }
-        if (definition.hasAttribute('ambient') && !instance.hasAttribute('ambient')) {
-             instance.setAttribute('ambient', '');
-             potentiallyChangedAmbient = true;
+        if (
+            definition.hasAttribute("ambient") &&
+            !instance.hasAttribute("ambient")
+        ) {
+            instance.setAttribute("ambient", "");
+            potentiallyChangedAmbient = true;
         }
-        const defStyle = definition.getAttribute('style');
-        if (defStyle && !instance.hasAttribute('style')) {
-             instance.setAttribute('style', defStyle);
+        const defStyle = definition.getAttribute("style");
+        if (defStyle && !instance.hasAttribute("style")) {
+            instance.setAttribute("style", defStyle);
         }
-        let finalZ = instance.style.zIndex || instance.getAttribute('z-index');
-        if (!finalZ || finalZ === 'auto') {
-            finalZ = definition.style.zIndex || definition.getAttribute('z-index');
+        let finalZ = instance.style.zIndex || instance.getAttribute("z-index");
+        if (!finalZ || finalZ === "auto") {
+            finalZ =
+                definition.style.zIndex || definition.getAttribute("z-index");
         }
-        if (finalZ && finalZ !== 'auto') {
+        if (finalZ && finalZ !== "auto") {
             instance.style.zIndex = finalZ;
         } else {
-            instance.style.zIndex = '';
+            instance.style.zIndex = "";
         }
     }
 
     #configureMediaInstance(instance, definition) {
-        instance.slot = 'media';
-        const defSrc = definition.getAttribute('src');
-        if (defSrc && instance.getAttribute('src') !== defSrc) {
-             instance.setAttribute('src', defSrc);
+        instance.slot = "media";
+        const defSrc = definition.getAttribute("src");
+        if (defSrc && instance.getAttribute("src") !== defSrc) {
+            instance.setAttribute("src", defSrc);
         }
-        const instanceAttrs = new Set(Array.from(instance.attributes, attr => attr.name.toLowerCase()));
-        const boolAttrsToCopy = ['autoplay', 'loop', 'muted', 'controls'];
+        const instanceAttrs = new Set(
+            Array.from(instance.attributes, (attr) => attr.name.toLowerCase())
+        );
+        const boolAttrsToCopy = ["autoplay", "loop", "muted", "controls"];
         for (const attrName of boolAttrsToCopy) {
-            if (definition.hasAttribute(attrName) && !instance.hasAttribute(attrName)) {
-                instance.setAttribute(attrName, '');
+            if (
+                definition.hasAttribute(attrName) &&
+                !instance.hasAttribute(attrName)
+            ) {
+                instance.setAttribute(attrName, "");
             }
         }
-        const otherAttrsToCopy = ['preload', 'crossorigin', 'volume'];
+        const otherAttrsToCopy = ["preload", "crossorigin", "volume"];
         for (const attrName of otherAttrsToCopy) {
-            if (definition.hasAttribute(attrName) && !instanceAttrs.has(attrName)) {
-                instance.setAttribute(attrName, definition.getAttribute(attrName));
+            if (
+                definition.hasAttribute(attrName) &&
+                !instanceAttrs.has(attrName)
+            ) {
+                instance.setAttribute(
+                    attrName,
+                    definition.getAttribute(attrName)
+                );
             }
-        }
-        
-        const defStyle = definition.getAttribute('style');
-        if (defStyle && !instance.hasAttribute('style')) {
-             instance.setAttribute('style', defStyle);
         }
 
-        if (instance.hasAttribute('autoplay') && instance.paused) {
-             instance.play().catch(e => console.warn(`Autoplay for ${instance.src || instance.uid} was blocked:`, e.message));
+        const defStyle = definition.getAttribute("style");
+        if (defStyle && !instance.hasAttribute("style")) {
+            instance.setAttribute("style", defStyle);
+        }
+
+        if (instance.hasAttribute("autoplay") && instance.paused) {
+            instance
+                .play()
+                .catch((e) =>
+                    console.warn(
+                        `Autoplay for ${
+                            instance.src || instance.uid
+                        } was blocked:`,
+                        e.message
+                    )
+                );
         }
     }
-
 
     /** Adds an element to the scene, assigning it to the correct slot. */
     addElement(element) {
         if (!element || !(element instanceof HTMLElement)) {
-            console.warn("VNScene.addElement: Invalid element provided.", element);
+            console.warn(
+                "VNScene.addElement: Invalid element provided.",
+                element
+            );
             return;
         }
- 
+
         const tagName = element.tagName.toLowerCase();
-        let targetSlot = '';
+        let targetSlot = "";
         let isAmbientImg = false;
 
-        if (tagName === 'img') { targetSlot = 'images'; if (element.hasAttribute('ambient')) isAmbientImg = true; }
-        else if (tagName === 'text-box') { targetSlot = 'textboxes'; }
-        else if (tagName === 'vn-actor') { targetSlot = ''; }
-        else if (tagName === 'audio' || tagName === 'video') { targetSlot = 'media'; }
-        else if (tagName === 'style') {
-            targetSlot = '';
+        if (tagName === "img") {
+            targetSlot = "images";
+            if (element.hasAttribute("ambient")) isAmbientImg = true;
+        } else if (tagName === "text-box") {
+            targetSlot = "textboxes";
+        } else if (tagName === "vn-actor") {
+            targetSlot = "";
+        } else if (tagName === "audio" || tagName === "video") {
+            targetSlot = "media";
+        } else if (tagName === "style") {
+            targetSlot = "";
         } else if (element.parentElement == this && element.shadowRootTarget) {
-            console.log(`VNScene.addElement: Element is trying to add itself to a nested component's shadow root. Skipping...`);
+            console.log(
+                `VNScene.addElement: Element is trying to add itself to a nested component's shadow root. Skipping...`
+            );
         } else {
-            console.warn(`VNScene.addElement: Unsupported type "${tagName}". Adding to default slot.`); 
-             targetSlot = ''; 
+            console.warn(
+                `VNScene.addElement: Unsupported type "${tagName}". Adding to default slot.`
+            );
+            targetSlot = "";
         }
 
         if (!element.shadowRootTarget) {
@@ -532,61 +765,85 @@ export default class VNSceneElement extends HTMLElement {
             this.appendChild(element);
 
             if (isAmbientImg) {
-                requestAnimationFrame(() => { if (!this.#isAnalyzingAmbient) this.#updateAmbientSource(); });
+                requestAnimationFrame(() => {
+                    if (!this.#isAnalyzingAmbient) this.#updateAmbientSource();
+                });
             }
         }
     }
 
     /** Removes an element from the scene. */
     removeElement(element) {
-         if (element && element.parentElement === this) {
-              const removingCurrentAmbient = (element === this.#ambientSourceElement);
+        if (element && element.parentElement === this) {
+            const removingCurrentAmbient =
+                element === this.#ambientSourceElement;
 
-              this.removeChild(element);
+            this.removeChild(element);
 
-              if (removingCurrentAmbient) {
-                   requestAnimationFrame(() => { if (!this.#isAnalyzingAmbient) this.#updateAmbientSource(); });
-              }
-         } else if (element) { console.warn("VNScene.removeElement: Element is not a direct child or invalid.", element); }
-         else { console.warn("VNScene.removeElement: Invalid element provided.", element); }
+            if (removingCurrentAmbient) {
+                requestAnimationFrame(() => {
+                    if (!this.#isAnalyzingAmbient) this.#updateAmbientSource();
+                });
+            }
+        } else if (element) {
+            console.warn(
+                "VNScene.removeElement: Element is not a direct child or invalid.",
+                element
+            );
+        } else {
+            console.warn(
+                "VNScene.removeElement: Invalid element provided.",
+                element
+            );
+        }
     }
 
     /** Adds a <style> to the scene's shadow DOM. */
     #handleAddStyleElement(element, definition) {
-        const uid = element.getAttribute('uid') || null;
-        const existingStyle = this.shadowRoot.querySelector(`style[uid="${uid}"]`);
-        
+        const uid = element.getAttribute("uid") || null;
+        const existingStyle = this.shadowRoot.querySelector(
+            `style[uid="${uid}"]`
+        );
+
         let elementToAdd = definition?.cloneNode?.(true) || element;
 
         if (existingStyle) {
-            console.warn(`VNScene: <style> with uid "${uid}" already exists in shadow DOM. Replacing style with:`, elementToAdd);
+            console.warn(
+                `VNScene: <style> with uid "${uid}" already exists in shadow DOM. Replacing style with:`,
+                elementToAdd
+            );
             existingStyle.replaceWith(elementToAdd);
         } else {
-            console.log(`VNScene: Adding new <style> with uid "${uid}" to shadow DOM.`, elementToAdd);
+            console.log(
+                `VNScene: Adding new <style> with uid "${uid}" to shadow DOM.`,
+                elementToAdd
+            );
             this.shadowRoot.appendChild(elementToAdd);
         }
     }
 
     /** Creates a new VNTextboxElement instance based on the scene's 'textbox' definition attribute. */
     acquireTextbox() {
-
         let newTextbox = null;
-        const definitionUid = this.getAttribute('textbox');
+        const definitionUid = this.getAttribute("textbox");
         const player = this.player;
 
         if (definitionUid && player) {
             const definition = player.getAssetDefinition(definitionUid);
             if (definition && definition instanceof VNTextboxElement) {
                 newTextbox = definition.cloneNode(true);
-                newTextbox.setAttribute('ref', definitionUid);
+                newTextbox.setAttribute("ref", definitionUid);
             } else {
-                console.error(`Scene: Textbox definition "${definitionUid}" not found or not a <text-box>. Falling back.`, definition);
+                console.error(
+                    `Scene: Textbox definition "${definitionUid}" not found or not a <text-box>. Falling back.`,
+                    definition
+                );
             }
         }
 
         if (!newTextbox) {
             console.log("Scene: Creating default textbox instance.");
-            newTextbox = document.createElement('text-box');
+            newTextbox = document.createElement("text-box");
         }
 
         this.addElement(newTextbox);
@@ -594,47 +851,71 @@ export default class VNSceneElement extends HTMLElement {
         return newTextbox;
     }
 
-
     /** Removes all elements from a specific layer (slot). */
     clearLayer(layerName) {
-         let slotNameToClear = null;
-         switch(layerName.toLowerCase()) {
-             case 'images': slotNameToClear = 'images'; break;
-             case 'actors': slotNameToClear = ''; break;
-             case 'textboxes': slotNameToClear = 'textboxes'; break;
-             case 'media': slotNameToClear = 'media'; break;
-             default: console.warn(`VNScene.clearLayer: Unknown layer name "${layerName}"`); return;
-         }
+        let slotNameToClear = null;
+        switch (layerName.toLowerCase()) {
+            case "images":
+                slotNameToClear = "images";
+                break;
+            case "actors":
+                slotNameToClear = "";
+                break;
+            case "textboxes":
+                slotNameToClear = "textboxes";
+                break;
+            case "media":
+                slotNameToClear = "media";
+                break;
+            default:
+                console.warn(
+                    `VNScene.clearLayer: Unknown layer name "${layerName}"`
+                );
+                return;
+        }
 
-         const elementsToRemove = [...this.children].filter(child => child.slot === slotNameToClear);
-         let removingAmbient = false;
+        const elementsToRemove = [...this.children].filter(
+            (child) => child.slot === slotNameToClear
+        );
+        let removingAmbient = false;
 
-         elementsToRemove.forEach(el => {
-             if (el === this.#ambientSourceElement) removingAmbient = true;
-             this.removeChild(el);
-         });
+        elementsToRemove.forEach((el) => {
+            if (el === this.#ambientSourceElement) removingAmbient = true;
+            this.removeChild(el);
+        });
 
-         if (removingAmbient) {
-            requestAnimationFrame(() => { if (!this.#isAnalyzingAmbient) this.#updateAmbientSource(); });
-         }
+        if (removingAmbient) {
+            requestAnimationFrame(() => {
+                if (!this.#isAnalyzingAmbient) this.#updateAmbientSource();
+            });
+        }
     }
 
     /** Removes all child elements from the scene. */
     clearAll() {
-         let removingAmbient = false;
-         if (this.#ambientSourceElement?.parentElement === this) removingAmbient = true;
+        let removingAmbient = false;
+        if (this.#ambientSourceElement?.parentElement === this)
+            removingAmbient = true;
 
-         while (this.firstChild) { this.removeChild(this.firstChild); }
+        while (this.firstChild) {
+            this.removeChild(this.firstChild);
+        }
 
-         if (removingAmbient) {
-             requestAnimationFrame(() => { if (!this.#isAnalyzingAmbient) this.#updateAmbientSource(); });
-         }
+        if (removingAmbient) {
+            requestAnimationFrame(() => {
+                if (!this.#isAnalyzingAmbient) this.#updateAmbientSource();
+            });
+        }
     }
 
     /** @type {VNPlayerElement | null} */
-    get player() { return this.closest('visual-novel'); }
-     /** @type {VNProjectElement | null} */
-     get project() { return this.player?.getProject(); }
+    get player() {
+        return this.closest("visual-novel");
+    }
+    /** @type {VNProjectElement | null} */
+    get project() {
+        return this.player?.getProject();
+    }
 }
 
-customElements.define('vn-scene', VNSceneElement);
+customElements.define("vn-scene", VNSceneElement);
