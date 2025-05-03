@@ -9,6 +9,8 @@ import VNCommandAddObject from "./commands/VNCommandAddObject.js";
 import VNCommandSetActorState from "./commands/VNCommandSetActorState.js";
 import VNCommandEvalJS from "./commands/VNCommandEvalJS.js";
 import VNCommandAnimate from "./commands/VNCommandAnimate.js";
+import VNCommandPick from "./commands/VNCommandPick.js";
+import VNCommandChoice from "./commands/VNCommandChoice.js"; //added import for choice & pick commands
 
 export default class VNCommandQueue {
     i = 0;
@@ -204,34 +206,36 @@ export default class VNCommandQueue {
                 );
             case "start":
                 return new VNCommandStart(this);
-            case "if":
-                if (
-                    typeof commandObject.conditionFunc !== "function" ||
-                    !(commandObject.trueBranchQueue instanceof VNCommandQueue)
-                ) {
-                    console.error(
-                        "VNQ Parse Error: Invalid 'if' object structure. Requires conditionFunc (function) and trueBranchQueue (VNCommandQueue).",
-                        commandObject
-                    );
+            case 'if':
+                 if (typeof commandObject.conditionFunc !== 'function' || !(commandObject.trueBranchQueue instanceof VNCommandQueue)) {
+                     console.error("VNQ Parse Error: Invalid 'if' object structure. Requires conditionFunc (function) and trueBranchQueue (VNCommandQueue).", commandObject); return null;
+                 }
+                return new VNCommandIf(this, commandObject.conditionFunc, commandObject.trueBranchQueue);
+             case 'else':
+                  if (!(commandObject.commandsQueue instanceof VNCommandQueue)) {
+                      console.error("VNQ Parse Error: Invalid 'else' object. Requires commandsQueue (VNCommandQueue).", commandObject); return null;
+                  }
+                 return new VNCommandElse(this, commandObject.commandsQueue);
+             case 'noop':
+                 return null;
+             case 'error':
+                 console.error("Scripting Error reported via command:", commandObject.message || "No message provided.", commandObject);
+                 return null;
+            case 'pick':
+                console.log("Parsing PICK object:", commandObject); // Logs the incoming object
+                if (Array.isArray(commandObject.choices)) {
+                    commandObject.choices.forEach((c, index) => {
+                        console.log(`Choice ${index} instanceof VNCommandChoice:`, c instanceof VNCommandChoice, c); // Log each choice
+                    });
+                }
+                return new VNCommandPick(this, commandObject.choices);
+            case 'choice':
+                if (typeof commandObject.text !== 'string' || !(commandObject.commandsQueue instanceof VNCommandQueue)) {
+                    console.error("VNQ Parse Error: Invalid 'CHOICE' object structure. Requires text (string) and commandsQueue (VNCommandQueue).", commandObject);
                     return null;
                 }
-                return new VNCommandIf(
-                    this,
-                    commandObject.conditionFunc,
-                    commandObject.trueBranchQueue
-                );
-            case "else":
-                if (!(commandObject.commandsQueue instanceof VNCommandQueue)) {
-                    console.error(
-                        "VNQ Parse Error: Invalid 'else' object. Requires commandsQueue (VNCommandQueue).",
-                        commandObject
-                    );
-                    return null;
-                }
-                return new VNCommandElse(this, commandObject.commandsQueue);
-            case "noop":
-                return null;
-            case "eval":
+                return new VNCommandChoice(this, commandObject.text, commandObject.commandsQueue);
+           case "eval":
                 if (typeof commandObject.execFunc !== "function") {
                     console.error(
                         "VNQ Parse Error: Invalid 'eval' object. Requires execFunc (function).",
@@ -240,13 +244,6 @@ export default class VNCommandQueue {
                     return null;
                 }
                 return new VNCommandEvalJS(this, this.#scene, commandObject.execFunc);
-            case "error":
-                console.error(
-                    "Scripting Error reported via command:",
-                    commandObject.message || "No message provided.",
-                    commandObject
-                );
-                return null;
             default:
                 console.warn(
                     `VNQ Parse: Unknown API object type "${commandObject.type}"`,
