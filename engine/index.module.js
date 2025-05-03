@@ -2,7 +2,7 @@
  * @module engine
  * @summary The VNPlayerElement engine module. This module contains the VNCommand classes utilized by the <visual-novel> runtime.
  */
-
+import VNAnimation from "./VNAnimation.js";
 import VNCommand from "./VNCommand.js";
 import VNCommandQueue from "./VNCommandQueue.js";
 import VNCommandStart from "./commands/VNCommandStart.js";
@@ -13,7 +13,9 @@ import VNCommandStyle from "./commands/VNCommandStyle.js";
 import VNCommandAddObject from "./commands/VNCommandAddObject.js";
 import { VNCommandIf, VNCommandElse } from "./commands/VNCommandIf.js";
 
+
 export default {
+    VNAnimation,
     VNCommand,
     VNCommandQueue,
     VNCommandStart,
@@ -23,5 +25,6 @@ export default {
     VNCommandAddObject,
     VNCommandIf,
     VNCommandElse,
-    VNCommandStyle
+    VNCommandStyle,
+    
 };

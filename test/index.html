@@ -65,54 +65,31 @@
                     <meta itemprop="author" content="Anon" />
                     <meta itemprop="version" content="1.0" />
                     <meta itemprop="date" content="2025-04-29" />
-                    <meta itemprop="license" content="" />
-
+                    <meta itemprop="license" content="MIT" />
+                    
                     <vn-assets>
-                        
-                        <img
-                            uid="bowser"
-                            src="./images/backgrounds/bowser.png"
-                        >
-                        <img
-                            uid="park-at-night"
-                            src="./images/backgrounds/park-at-night.png"
-                        />
-                        <audio
-                            uid="menacing"
-                            src="./audio/music/menacing.ogg"
-                            loop
-                        ></audio>
-
+                        <img src="./images/backgrounds/_back_of_classroom_day.jpg" uid="back-of-classroom-day" />
                         <vn-actor
-                            uid="kacey"
-                            name="Kacey"
-                            &face="neutral"
-                            &body="neutral"
-                            style="transform: scale(1.4);"
+                            uid="haruka"
+                            name="Haruka"
+                            &pose="normal"
+                            &face="smile"
                         >
-                            <body-part uid="body">
-                                <img
-                                    src="./images/actors/kacey/kacey-body-arrogant.png"
-                                    uid="neutral"
-                                    style="z-index: 1"
-                                />
+                            <vn-style>
+                                :host {
+                                    transform: scale(1.7);
+                                }
+                            </vn-style>
+
+                            <body-part
+                                uid="pose"
+                            >
+                                <img src="./images/actors/haruka/pose-normal.png" uid="normal" />
                             </body-part>
-                            <body-part uid="face">
-                                <img
-                                    src="./images/actors/kacey/kacey-face-neutral.png"
-                                    uid="neutral"
-                                    trigger=":|"
-                                />
-                                <img
-                                    src="./images/actors/kacey/kacey-face-scoff.png"
-                                    uid="scoff"
-                                    trigger=">:)"
-                                />
-                                <img
-                                    src="./images/actors/kacey/kacey-face-furious.png"
-                                    uid="furious"
-                                    trigger=">:("
-                                />
+                            <body-part
+                                uid="face"
+                            >
+                                <img src="./images/actors/haruka/face-smile.png" uid="smile" />
                             </body-part>
                         </vn-actor>
 
@@ -123,7 +100,7 @@
                                 border: 2px solid rgba(255, 255, 255, 0.5);
                                 box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
                                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana,
-                                    sans-serif;
+                                sans-serif;
                                 font-size: 1.4em;
                                 height: 55svh;
                             "

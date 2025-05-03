@@ -1,5 +1,5 @@
 import VNComponents from './components/index.module.js';
-
+import VNAnimation from './engine/VNAnimation.js';
 
 
 document.querySelector('html > head').append(`
@@ -11,5 +11,7 @@ document.querySelector('html > head').append(`
 `);
 
 export default {
+    VNAnimation,
     ...VNComponents,
+    
 }

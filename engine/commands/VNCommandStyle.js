@@ -2,6 +2,7 @@
  * @summary Injects a new style into the VNSceneElement's shadow DOM.
  */
 import VNCommand from "../VNCommand.js";
+import html from '../../utils/html.js';
 
 export default class VNCommandStyle extends VNCommand {
     type = 'style';
@@ -11,10 +12,7 @@ export default class VNCommandStyle extends VNCommand {
     }
 
     execute() {
-        const { player, args } = this;
-        const style = document.createElement('style');
-        style.textContent = args[0];
-        player.shadowRoot.appendChild(style);
+        
         return true;
     }
 
