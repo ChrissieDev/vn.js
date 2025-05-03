@@ -8,11 +8,11 @@ let user = 'Anon';
 
 const fadeIn = ANIMATION(
     [
-        { opacity: 0 },
-        { opacity: 1 }
+        { opacity: 0, filter: 'brightness(1) grayscale(0)' },
+        { opacity: 1, filter: 'brightness(1) grayscale(0)' },
     ],
     {
-        duration: 4000,
+        duration: 2000,
         easing: 'ease-in-out',
         fill: 'forwards',
     },
@@ -28,7 +28,7 @@ const testScene = SCENE(
         style: `opacity: 0;`,
     }),
 
-    $(() => {
+    $(function () {
         haruka.reputation = {
             you: 50,
         };
@@ -36,9 +36,8 @@ const testScene = SCENE(
 
     ADD.IMAGE(`back-of-classroom-day`),
     // SELECT(`back-of-classroom-day`).animate(fadeIn, { wait: true }),
-       
-    haruka
-    `Hey, ${user}, do you have a moment?`,
+
+    haruka`Hey, ${user}, do you have a moment?`,
 
     haruka.animate(fadeIn, {
         wait: true,
@@ -47,29 +46,36 @@ const testScene = SCENE(
     haruka
     `I've been thinking lately... Um...`,
 
-    TEXT
-    `It's apparent that Haruka is trying to get something off her chest---You can tell by the way she fidgets with her hands and avoids eye contact.`,
+    text
+    `<em>It's apparent that Haruka is trying to get something off her chest---You can tell by the way she <b>fidgets</b> with her hands and avoids eye contact.</em>`,
 
     haruka
     `Well, you know how you borrowed my Dora the Explorer sneakers?`,
     `It's just that... It's been three weeks and like, um...`,
 
-    TEXT
+    text
     `She looks like she might burst into tears any second now.`,
 
     you
     `I said I'd return them, didn't I?!`,
+    you
     `Are you really going to cry over a pair of sneakers?`, // multiple lines by 'you' cause it to be treated as monologue, need fix
-
+    
+    haruka.animate([
+        { transform: 'rotate(0deg) scale(1.7)', transformOrigin: 'center center' },
+        { transform: 'rotate(180deg) scale(1.7)', transformOrigin: 'center center' },
+    ], {
+        duration: 500,
+        easing: 'linear',
+        fill: 'forwards',
+    }),
+    
     $(() => {
         haruka.reputation.you -= 40;
     }),
 
     haruka
     `Uh... I... Um...`,
-
-    you
-    `I said I'd return them, didn't I?!`,
 
     haruka
     `I know, but...`,
@@ -80,7 +86,7 @@ const testScene = SCENE(
     haruka
     `You threw them out?!`,
 
-    TEXT
+    text
     `Haruka's eyes widen in disbelief. She begins to sob.`,
 
     you

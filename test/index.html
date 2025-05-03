@@ -31,10 +31,16 @@
                 height: 100%;
                 overflow: hidden;
             }
-
+            vn-actor {
+                transition: all 0.1s allow-discrete;
+                
+            }
             vn-actor:not(.speaking) {
                 filter: grayscale(0.1) brightness(0.4);
-                transition: filter transform 0.2s ease-in-out;
+            }
+
+            vn-actor.speaking {
+                transform: scale(1.75);
             }
 
             @keyframes fadein {

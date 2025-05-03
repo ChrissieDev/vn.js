@@ -95,7 +95,6 @@ export default class VNPlayerElement extends HTMLElement {
                 );
                 return;
             }
-            
         }
 
         this.#prepareRuntimeContext();
@@ -116,7 +115,6 @@ export default class VNPlayerElement extends HTMLElement {
         this.removeEventListener("proceed", this.#handleProceed);
     }
 
-
     getProject() {
         return this.#projectElement;
     }
@@ -133,7 +131,6 @@ export default class VNPlayerElement extends HTMLElement {
         return this.#mainScriptQueue;
     }
 
-
     /**
      * Runs the script content from the <script> element or a provided string.
      * @param {string} [string] - Optional string to run as script content.
@@ -142,9 +139,7 @@ export default class VNPlayerElement extends HTMLElement {
      */
     async runScript(string) {
         if (!this.#scriptElement) {
-            console.warn(
-                "#loadAndRunScript called without a script element."
-            );
+            console.warn("#loadAndRunScript called without a script element.");
         }
 
         let scriptContent = "";
@@ -242,47 +237,40 @@ export default class VNPlayerElement extends HTMLElement {
             return;
         }
 
-        try {
-            console.log("Creating main script function from combined body...");
-            const scriptFunction = new Function(finalScriptBody);
+        console.log("Creating main script function from combined body...");
+        const scriptFunction = new Function(finalScriptBody);
 
-            console.log(
-                "Calling main script function with runtime context:",
-                this.#runtime
-            );
-            scriptFunction.call(this.#runtime);
-            console.log("Main script function call completed.");
+        console.log(
+            "Calling main script function with runtime context:",
+            this.#runtime
+        );
+        scriptFunction.call(this.#runtime);
+        console.log("Main script function call completed.");
 
-            if (this.#runtime._lastPlayedQueue) {
-                if (this.#runtime._lastPlayedQueue instanceof VNCommandQueue) {
-                    this.#mainScriptQueue = this.#runtime._lastPlayedQueue;
+        if (this.#runtime._lastPlayedQueue) {
+            if (this.#runtime._lastPlayedQueue instanceof VNCommandQueue) {
+                this.#mainScriptQueue = this.#runtime._lastPlayedQueue;
+                console.log(
+                    "Script loaded. Main queue set:",
+                    this.#mainScriptQueue
+                );
+                if (this.#mainScriptQueue) {
                     console.log(
-                        "Script loaded. Main queue set:",
-                        this.#mainScriptQueue
+                        "VNPlayer: Auto-starting execution of main queue."
                     );
-                    if (this.#mainScriptQueue) {
-                        console.log(
-                            "VNPlayer: Auto-starting execution of main queue."
-                        );
-                        this.setCurrentQueue(this.#mainScriptQueue);
-                        this.isPlaying = true;
-                        this.continueExecution();
-                    }
-                } else {
-                    console.error(
-                        "Script loaded, but the object stored by play() is not a VNCommandQueue instance.",
-                        this.#runtime._lastPlayedQueue
-                    );
+                    this.setCurrentQueue(this.#mainScriptQueue);
+                    this.isPlaying = true;
+                    this.continueExecution();
                 }
             } else {
-                console.warn(
-                    "Script function call completed, but no queue was stored by play(). Did the script run correctly and call play()?"
+                console.error(
+                    "Script loaded, but the object stored by play() is not a VNCommandQueue instance.",
+                    this.#runtime._lastPlayedQueue
                 );
             }
-        } catch (error) {
-            console.error(
-                "Error executing VN script (caught in visual-novel):",
-                error
+        } else {
+            console.warn(
+                "Script function call completed, but no queue was stored by play(). Did the script run correctly and call play()?"
             );
         }
     }
@@ -381,7 +369,6 @@ export default class VNPlayerElement extends HTMLElement {
                 continueImmediately ? "Continuing" : "Paused/Ended"
             } ---`
         );
-
     }
 
     /**
@@ -433,7 +420,7 @@ export default class VNPlayerElement extends HTMLElement {
     /**
      * Builds the runtime context for scripts to execute in.
      * The main API is defined here.
-     * 
+     *
      * @todo Refactor be more structured, perhaps define it in some private property #runtimeBase
      * so we can just copy it over to #runtime.
      */
@@ -443,7 +430,6 @@ export default class VNPlayerElement extends HTMLElement {
         if (!this.#runtime) {
             this.#runtime = { player: this, _lastPlayedQueue: null };
         } else {
-
             for (const key in Object.keys(this.#runtime)) {
                 if (key !== "player" && key !== "_lastPlayedQueue") {
                     delete this.#runtime[key];
@@ -468,12 +454,11 @@ export default class VNPlayerElement extends HTMLElement {
         this.#runtime.START = this.#runtime_START;
         this.#runtime.CHOICE = this.#runtime_CHOICE;
         this.#runtime.PICK = this.#runtime_PICK;
-        this.#runtime.TEXT = this.#runtime_TEXT;
         this.#runtime.RUN = this.#runtime_RUN;
         this.#runtime.ANIMATE = this.#runtime_ANIMATE;
         this.#runtime.ANIMATION = this.#runtime_ANIMATION;
         this.#runtime.SELECT = this.#runtime_SELECT;
-
+        this.#runtime.text = this.#runtime_text;
 
         Object.defineProperty(this.#runtime, "innerHTML", {
             get: this.#runtime_getInnerHTML,
@@ -502,23 +487,26 @@ export default class VNPlayerElement extends HTMLElement {
             for (const actorDef of actorDefs) {
                 const uid = actorDef.getAttribute("uid");
                 const name = actorDef.getAttribute("name") || uid;
-                
+
                 // Does the actor function already exist in the runtime?
                 if (uid && !this.#runtime[uid]) {
-                    const actorFunction = this.#createActorFunction(uid, name, actorDef);
-                    
-                    // The Map holds a reference to all actor functions so if we want to remove all actor functions from the runtime, 
+                    const actorFunction = this.#createActorFunction(
+                        uid,
+                        name,
+                        actorDef
+                    );
+
+                    // The Map holds a reference to all actor functions so if we want to remove all actor functions from the runtime,
                     // we iterate over the Map and remove them from the runtime (and the Map).
                     // This should keep all other properties if needed.
                     this.#actorFunctions.set(uid, actorFunction);
                     this.#runtime[uid] = actorFunction;
-
                 } else {
                     console.warn(
                         `Refusing to overwrite existing actor function for actor "${uid}" as one already exists within the script's context.`
                     );
                 }
-            };
+            }
         } else {
             throw new ReferenceError(
                 `No instance of <vn-assets> found in the project. Your <vn-project> must contain a <vn-assets> element!`
@@ -542,13 +530,13 @@ export default class VNPlayerElement extends HTMLElement {
             );
         }
     }
-    
+
     /**
      * Create the function meant to exist in the global scope of the VN runtime.
-     * @param {string} uid 
-     * @param {string} displayName 
-     * @param {VNActorElement} actorDef 
-     * @returns 
+     * @param {string} uid
+     * @param {string} displayName
+     * @param {VNActorElement} actorDef
+     * @returns
      */
     #createActorFunction(uid, displayName, actorDef) {
         console.log(
@@ -568,17 +556,19 @@ export default class VNPlayerElement extends HTMLElement {
                 text: text.trim(),
             };
         };
-        
+
         // getter/setter for the actor's name. this changes the `name` attribute of the actor instance.
         Object.defineProperty(actorFunc, "NAME", {
-
             get: () => {
                 console.log(`Getter called for ${uid}.NAME`);
                 return actorDef.getAttribute("name");
             },
 
             set: (newName) => {
-                console.log(`Setter called for ${uid}.NAME with value:`, newName);
+                console.log(
+                    `Setter called for ${uid}.NAME with value:`,
+                    newName
+                );
                 let valueToSet;
                 if (typeof newName === "string") {
                     valueToSet = newName;
@@ -591,8 +581,8 @@ export default class VNPlayerElement extends HTMLElement {
 
                 actorDef.setAttribute("name", valueToSet);
             },
-            configurable: true, 
-            enumerable: true,  
+            configurable: true,
+            enumerable: true,
         });
 
         actorFunc.animate = (...args) => {
@@ -618,10 +608,13 @@ export default class VNPlayerElement extends HTMLElement {
                     animation.overrideOptions(options);
                 }
             } else if (args.length >= 2) {
+                console.log("API: ANIMATE called with keyframes and options.");
                 // has keyframes, options, onFinish
                 const keyframes = args[0];
                 const options = args[1];
+
                 if (args.length >= 3) {
+                    console.log("onFinish argument found:", args[2]);
                     if (typeof args[2] !== "function") {
                         console.error(
                             `Actor function ANIMATE() called with invalid arguments: ${args}. Expected function for onFinish.`
@@ -631,24 +624,31 @@ export default class VNPlayerElement extends HTMLElement {
 
                     const onFinish = args[2];
                     animation = new VNAnimation(keyframes, options, onFinish);
-                }   
+                }
+
+                // don't reassign animation if it was already assigned with an onFinish function
+                if (!animation) {
+                    animation = new VNAnimation(keyframes, options);
+                }
             } else {
                 // error
                 console.error(
                     `Actor function ANIMATE() called with invalid arguments: ${args}`
                 );
-                
+
                 return null;
             }
-            console.log(`\x1b[31mAPI: ANIMATE called for ${uid} with wait: ${wait}\x1b[0m`);
+            console.log(
+                `\x1b[31mAPI: ANIMATE called for ${uid} with wait: ${wait}\x1b[0m`
+            );
             return new VNCommandAnimate(
                 // this is null at this point because play() hasn't been called yet.
                 this.#currentQueue,
                 actorFunc.definition,
                 animation,
                 wait
-            )
-        }
+            );
+        };
 
         Object.defineProperty(actorFunc, "definition", {
             get: () => {
@@ -697,7 +697,7 @@ export default class VNPlayerElement extends HTMLElement {
         }
 
         return element;
-    }
+    };
 
     #runtime_play = (sceneQueue) => {
         console.log("API: play called with argument:", sceneQueue);
@@ -772,7 +772,10 @@ export default class VNPlayerElement extends HTMLElement {
 
         if (typeof func !== "function" && typeof func !== "string") {
             console.error("$() expects a function or string!");
-            return { type: "error", message: "$(...) expects a function or string!" };
+            return {
+                type: "error",
+                message: "$(...) expects a function or string!",
+            };
         }
 
         if (typeof func === "string") {
@@ -783,7 +786,7 @@ export default class VNPlayerElement extends HTMLElement {
         return {
             type: "eval",
             execFunc: func,
-         };
+        };
     };
     #runtime_ADD = {
         IMAGE: (uid, options = {}) => {
@@ -838,7 +841,7 @@ export default class VNPlayerElement extends HTMLElement {
         }
         return { type: "PICK", choices: validChoices };
     };
-    #runtime_TEXT = (strings, ...values) => {
+    #runtime_text = (strings, ...values) => {
         console.log("API: TEXT called");
         const text = strings.reduce(
             (acc, str, i) => acc + str + (values[i] || ""),
@@ -858,30 +861,25 @@ export default class VNPlayerElement extends HTMLElement {
          * @todo Create a reusable VNAnimation class
          * Create a new reusable animation. It's just a wrapper for the Web Animations API.
          * @param {Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions} keyframes Keyframes for the animation.
-         * @param {EffectTiming} options Easing, duration, delay, etc. 
+         * @param {EffectTiming} options Easing, duration, delay, etc.
          * @param {Function | undefined} [onFinish] Optional callback to run when the animation finishes.
          */
         ANIMATION: (keyframes, options, onFinish = null) => {
-            return new VNAnimation(
-                keyframes,
-                options,
-                onFinish
-            );
-        }
-
-    }
+            return new VNAnimation(keyframes, options, onFinish);
+        },
+    };
 
     /**
      * @todo Animate a target element using the Web Animations API.
      * @param {Element | string} target The target element or element uid to animate.
      * @param {Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions} keyframes Keyframes for the animation.
-     * @param {EffectTiming} options Easing, duration, delay, etc. 
+     * @param {EffectTiming} options Easing, duration, delay, etc.
      * @param {Function | undefined} [onFinish] Optional callback to run when the animation finishes.
      */
     #runtime_ANIMATE = (target, keyframes, options, onFinish) => {
         console.log("API: ANIMATION called");
         const queue = this.#currentQueue;
-        
+
         const animation = new VNCommandAnimate(
             queue,
             target,
@@ -893,11 +891,7 @@ export default class VNPlayerElement extends HTMLElement {
     };
 
     #runtime_ANIMATION = (keyframes, options, onFinish) => {
-        return new VNAnimation(
-            keyframes,
-            options,
-            onFinish
-        );
+        return new VNAnimation(keyframes, options, onFinish);
     };
 
     #runtime_RUN = (script) => {
@@ -926,14 +920,11 @@ export default class VNPlayerElement extends HTMLElement {
         }
     };
 
-
-    /** 
+    /**
      * @todo Define all the `runtime_` prefixed methods in here instead without the prefix.
      * This is also good to check which names collide with the runtime API.
      */
-    #runtimeBase = {
-
-    }
+    #runtimeBase = {};
 
     /**
      * The context in which scripts are run in. The entire API exists here at runtime.
@@ -945,4 +936,3 @@ export default class VNPlayerElement extends HTMLElement {
 }
 
 customElements.define("visual-novel", VNPlayerElement);
-
