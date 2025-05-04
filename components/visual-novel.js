@@ -18,6 +18,9 @@ export default class VNPlayerElement extends HTMLElement {
     #scriptElement = null;
 
     #mainScriptQueue = null;
+    /**
+     * @type {VNCommandQueue}
+     */
     #currentQueue = null;
     #executionPaused = false;
     isPlaying = false;
@@ -97,6 +100,7 @@ export default class VNPlayerElement extends HTMLElement {
             }
         }
 
+        this.#initQueue();
         this.#prepareRuntimeContext();
         await this.runScript();
 
@@ -369,6 +373,23 @@ export default class VNPlayerElement extends HTMLElement {
             );
         }
     };
+    
+    #cleanupScene() {
+        this.#sceneElement.clearAll();
+    }
+
+    getQueue() {
+        return this.#currentQueue;
+    }
+    
+    #initQueue() {
+        // clear the queue for a new blank slate
+        this.#currentQueue = new VNCommandQueue({
+            player: this,
+            parentQueue: null,
+            scene: this.#sceneElement
+        });
+    }
 
     /**
      * Builds the runtime context for scripts to execute in.
@@ -380,15 +401,13 @@ export default class VNPlayerElement extends HTMLElement {
     #prepareRuntimeContext() {
         console.log("Preparing runtime context...");
 
-        if (!this.#runtime) {
-            this.#runtime = { player: this, _lastPlayedQueue: null };
-        } else {
-            for (const key in Object.keys(this.#runtime)) {
-                if (key !== "player" && key !== "_lastPlayedQueue") {
-                    delete this.#runtime[key];
-                }
+        for (const key in Object.keys(this.#runtime)) {
+            if (key !== "player" && key !== "_lastPlayedQueue") {
+                delete this.#runtime[key];
             }
         }
+
+        
 
         this.#actorFunctions.clear();
 
@@ -618,10 +637,7 @@ export default class VNPlayerElement extends HTMLElement {
 
     #runtime_SCENE = (...commands) => {
         console.log("API: SCENE called");
-        if (typeof VNCommandQueue === "undefined") {
-            console.error("SCENE Error: VNCommandQueue class is undefined!");
-            return null;
-        }
+
         try {
             const queue = new VNCommandQueue({ player: this }, ...commands);
             console.log("API: SCENE returning queue:", queue);
@@ -674,11 +690,7 @@ export default class VNPlayerElement extends HTMLElement {
                 `API: play - Argument has _isQueueFromSCENE marker: ${!!sceneQueue._isQueueFromSCENE}`
             );
         }
-        if (typeof VNCommandQueue === "undefined") {
-            console.error("API: play - CRITICAL: VNCommandQueue is undefined!");
-            this.#runtime._lastPlayedQueue = null;
-            return;
-        }
+        
         if (sceneQueue instanceof VNCommandQueue) {
             console.log(
                 "API: play - Argument IS instanceof VNCommandQueue. Storing."

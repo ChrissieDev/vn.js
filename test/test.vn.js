@@ -28,8 +28,6 @@ const testScene = SCENE(
         style: `opacity: 0;`,
     }),
 
-    
-
     $(function () {
         haruka.reputation = {
             you: 50,
@@ -41,16 +39,20 @@ const testScene = SCENE(
 
     haruka
     `Hey, ${user}, do you have a moment?`,
-
-    haruka.animate(fadeIn, {
-        wait: true,
+    
+    WAIT(async () => {
+        return await haruka.animate(fadeIn, {
+            wait: true,
+        });
+        
     }),
+    
     
     ADD.AUDIO(`everyday`, {
         volume: 0.05,
     }),
 
-    WAIT('10s'),
+    
 
     haruka
     `I've been thinking lately... Um...`,
