@@ -709,18 +709,7 @@ export default class VNSceneElement extends HTMLElement {
             instance.setAttribute("style", defStyle);
         }
 
-        if (instance.hasAttribute("autoplay") && instance.paused) {
-            instance
-                .play()
-                .catch((e) =>
-                    console.warn(
-                        `Autoplay for ${
-                            instance.src || instance.uid
-                        } was blocked:`,
-                        e.message
-                    )
-                );
-        }
+
     }
 
     /** Adds an element to the scene, assigning it to the correct slot. */
@@ -768,6 +757,37 @@ export default class VNSceneElement extends HTMLElement {
                 requestAnimationFrame(() => {
                     if (!this.#isAnalyzingAmbient) this.#updateAmbientSource();
                 });
+            }
+
+            if (element.tagName.toLowerCase() === 'audio') {
+                const tryPlayAudio = () => {
+                    setTimeout(() => {
+                        element.play().catch((e) => {
+                            console.warn(
+                                `Autoplay for ${element.src} was blocked:`,
+                                e.message
+                            );
+
+                            tryPlayAudio();
+                        });
+                    }, 1);
+                }
+
+                if (element.hasAttribute("volume")) {
+                    const volume = parseFloat(element.getAttribute("volume"));
+                    if (!isNaN(volume) && volume >= 0 && volume <= 1) {
+                        element.volume = volume;
+                    } else {
+                        console.warn(
+                            `VNScene.addElement: Invalid volume attribute "${element.getAttribute("volume")}" for audio element.`,
+                            element
+                        );
+                    }
+
+                }
+
+                tryPlayAudio();
+                
             }
         }
     }

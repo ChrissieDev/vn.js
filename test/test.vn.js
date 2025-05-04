@@ -28,6 +28,10 @@ const testScene = SCENE(
         style: `opacity: 0;`,
     }),
 
+    ADD.AUDIO(`everyday`, {
+        volume: 0.05,
+    }),
+
     $(function () {
         haruka.reputation = {
             you: 50,
