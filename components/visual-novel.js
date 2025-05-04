@@ -138,63 +138,13 @@ export default class VNPlayerElement extends HTMLElement {
      * @todo This method has multiple concerns. We should separate loading and execution.
      */
     async runScript(string) {
-        if (!this.#scriptElement) {
-            console.warn("#loadAndRunScript called without a script element.");
-        }
 
-        let scriptContent = "";
-        const scriptSrc = this.#scriptElement?.getAttribute?.("src");
-
-        console.log("--- Attempting to load script ---");
-
-        if (typeof string === "string") {
-            console.log(
-                "Script has no src attribute and no textContent. Using provided string."
-            );
-            scriptContent = string;
-        } else if (typeof string === "string") {
-            console.log(
-                `Script has src attribute: "${scriptSrc}". Fetching...`
-            );
-            try {
-                const response = await fetch(scriptSrc);
-                if (!response.ok) {
-                    throw new Error(
-                        `HTTP error! status: ${response.status} for ${scriptSrc}`
-                    );
-                }
-                scriptContent = await response.text();
-                console.log(
-                    `Fetched script content from ${scriptSrc}. Length: ${scriptContent.length}`
-                );
-            } catch (error) {
-                console.error(
-                    `Failed to fetch script from src "${scriptSrc}":`,
-                    error
-                );
-                return;
-            }
-        } else if (this.#scriptElement?.textContent?.trim?.() !== undefined) {
-            console.log("Script has no src attribute. Reading textContent...");
-            scriptContent = this.#scriptElement.textContent;
-            console.log("Read script content from textContent.");
-        } else {
-            console.warn("No script content found. Exiting.");
-        }
-
-        console.log("Final script content length:", scriptContent?.length);
-        console.log("--- End of script content ---");
-
-        if (!scriptContent || scriptContent.trim() === "") {
-            console.warn(
-                "Script content is empty or contains only whitespace."
-            );
-            return;
-        }
-
+        let scriptContent = string || null;
         console.log("Preparing to execute script via new Function()...");
 
         const runtimeKeys = Object.keys(this.#runtime);
+
+        // Add a `const` declaration for each runtime function so the user doesn't have to write `this.<functionName>` for each function.
         const declarations = runtimeKeys
             .filter((key) => {
                 if (key.startsWith("_")) return false;
@@ -218,6 +168,7 @@ export default class VNPlayerElement extends HTMLElement {
         );
         console.log("--- End Generated Script Body ---");
 
+        // Check for CSP restrictions
         try {
             const testFunc = new Function(
                 "console.log('new Function() test executed successfully.'); return true;"
@@ -244,6 +195,8 @@ export default class VNPlayerElement extends HTMLElement {
             "Calling main script function with runtime context:",
             this.#runtime
         );
+        
+        /** @todo create queue before calling the script */
         scriptFunction.call(this.#runtime);
         console.log("Main script function call completed.");
 
@@ -584,7 +537,7 @@ export default class VNPlayerElement extends HTMLElement {
             configurable: true,
             enumerable: true,
         });
-
+        
         actorFunc.animate = (...args) => {
             console.log(`API: Building VNCommandAnimate for ${uid}.`);
             let wait = false;
