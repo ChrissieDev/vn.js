@@ -195,7 +195,7 @@ export default class VNPlayerElement extends HTMLElement {
             "Calling main script function with runtime context:",
             this.#runtime
         );
-        
+
         /** @todo create queue before calling the script */
         scriptFunction.call(this.#runtime);
         console.log("Main script function call completed.");
@@ -411,6 +411,7 @@ export default class VNPlayerElement extends HTMLElement {
         this.#runtime.ANIMATE = this.#runtime_ANIMATE;
         this.#runtime.ANIMATION = this.#runtime_ANIMATION;
         this.#runtime.SELECT = this.#runtime_SELECT;
+        this.#runtime.WAIT = this.#runtime_WAIT;
         this.#runtime.text = this.#runtime_text;
 
         Object.defineProperty(this.#runtime, "innerHTML", {
@@ -632,6 +633,13 @@ export default class VNPlayerElement extends HTMLElement {
         }
     };
 
+    #runtime_WAIT = (time) => {
+        console.log("API: WAIT called with time:", time);
+        return {
+            type: "wait",
+            time,
+        }
+    }
     #runtime_SELECT = (uid) => {
         console.log("API: SELECT called with uid:", uid);
 

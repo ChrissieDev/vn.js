@@ -28,9 +28,7 @@ const testScene = SCENE(
         style: `opacity: 0;`,
     }),
 
-    ADD.AUDIO(`everyday`, {
-        volume: 0.05,
-    }),
+    
 
     $(function () {
         haruka.reputation = {
@@ -41,12 +39,19 @@ const testScene = SCENE(
     ADD.IMAGE(`back-of-classroom-day`),
     // SELECT(`back-of-classroom-day`).animate(fadeIn, { wait: true }),
 
-    haruka`Hey, ${user}, do you have a moment?`,
+    haruka
+    `Hey, ${user}, do you have a moment?`,
 
     haruka.animate(fadeIn, {
         wait: true,
     }),
     
+    ADD.AUDIO(`everyday`, {
+        volume: 0.05,
+    }),
+
+    WAIT('10s'),
+
     haruka
     `I've been thinking lately... Um...`,
 

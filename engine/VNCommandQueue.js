@@ -11,6 +11,7 @@ import VNCommandEvalJS from "./commands/VNCommandEvalJS.js";
 import VNCommandAnimate from "./commands/VNCommandAnimate.js";
 import VNCommandPick from "./commands/VNCommandPick.js";
 import VNCommandChoice from "./commands/VNCommandChoice.js"; //added import for choice & pick commands
+import VNCommandWait from "./commands/VNCommandWait.js";
 
 export default class VNCommandQueue {
     i = 0;
@@ -235,7 +236,9 @@ export default class VNCommandQueue {
                     return null;
                 }
                 return new VNCommandChoice(this, commandObject.text, commandObject.commandsQueue);
-           case "eval":
+            case "wait":
+                return new VNCommandWait(this, commandObject.time || "0s"); 
+            case "eval":
                 if (typeof commandObject.execFunc !== "function") {
                     console.error(
                         "VNQ Parse Error: Invalid 'eval' object. Requires execFunc (function).",
