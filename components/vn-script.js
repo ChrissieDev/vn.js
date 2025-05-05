@@ -1,4 +1,4 @@
-import VNPlayerElement from "./visual-novel.js";
+import VNPlayerElement from "./vn-player.js";
 import VNPlayerScene from "./vn-scene.js";
 
 export default class VNScriptElement extends HTMLElement {

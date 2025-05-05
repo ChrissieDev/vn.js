@@ -6,8 +6,9 @@
  * Converts triple hyphens (---) to em dashes (—) and double hyphens (--) to en dashes (–).
  * Can be defined in <vn-assets> and instantiated in <vn-scene>.
  */
-
 export default class VNTextboxElement extends HTMLElement {
+    
+    // General properties
     #isScrolling = false;
     #isComplete = false;
     #canProceed = false;
@@ -16,43 +17,73 @@ export default class VNTextboxElement extends HTMLElement {
     #startDelayTimeoutId = null;
     #isSkipping = false;
 
+    // Variables related to parsing nested HTML elements while maintaining the scrolling effect
     #processingStack = [];
     #currentTextNode = null;
     #currentCharIndex = 0;
     #currentTargetShadowTextNode = null;
     #currentTextNodeProcessedContent = null; // NEW: Store processed text for scrolling
 
+    /**
+     * Outer container for the text content.
+     * @type {HTMLElement}
+     */
     #contentElement = null;
+
+    /**
+     * The container holding the title text.
+     * @type {HTMLElement}
+     */
     #titleElement = null;
+
+    /**
+     * The animated '▶' (or styled otherwise) indicator element.
+     * @type {HTMLElement}
+     */
     #indicatorElement = null;
+    
+    /**
+     * Container for the text display inside the content container. Scrollable if needed, and supports nested HTML.
+     * @type {HTMLElement}
+     */
     #textDisplayElement = null;
+    
     #boundHandleInteraction = this.#handleInteraction.bind(this);
     #boundHandleKeydown = this.#handleKeydown.bind(this);
 
-    #scrollMs = 50;
+    /**
+     * The interval at which text is scrolled inside #textDisplayElement.
+     */
+    #scrollMs = 25;
     #startDelayMs = 0;
     #endDelayMs = 100;
 
+    /**
+     * Dictionary of characters that have a different scrolling speed when displayed.
+     * @todo make these customizable
+     */
     #speed = {
-        " ": 0,
-        ".": 300,
-        "?": 500,
-        "!": 500,
+        " ": 50,
+        ".": 150,
+        "?": 125,
+        "!": 125,
         "~": 200,
         ",": 100,
-        ";": 250,
-        ":": 250,
-        "—": 300, // Em dash
-        "–": 200, // En dash
+        ";": 125,
+        ":": 125,
+        "—": 150, // Em dash (parsed from `---`)
+        "–": 100, // En dash (parsed from `--`)
         "-": 50,  // Regular hyphen (keep original speed if desired)
     };
 
+    // Variables related to differentiating between a definition inside <vn-assets> and an instance inside <vn-scene>
     #isDefinitionParsed = false;
     #isInstanceInitialized = false;
 
     static observedAttributes = [
-        "uid",
-
+        "uid", // reference or definition id
+        
+        // directly sets the inline style attribute of the element. must be valid css values for each attribute's css rule equivalent.
         "top",
         "left",
         "bottom",
@@ -62,6 +93,7 @@ export default class VNTextboxElement extends HTMLElement {
         "color",
         "background",
 
+        // behavior related attributes
         "ms",
         "start-delay",
         "end-delay",
@@ -264,7 +296,7 @@ export default class VNTextboxElement extends HTMLElement {
 
         let definition = null;
         const definitionUid = this.getAttribute("ref");
-        const player = this.closest("visual-novel");
+        const player = this.closest("vn-player");
 
         if (definitionUid && player) {
             definition = player.getAssetDefinition(definitionUid);
@@ -870,7 +902,7 @@ export default class VNTextboxElement extends HTMLElement {
         }
     }
 
-    // --- Getters and Setters (unchanged) ---
+    // Getters and setters. State is represented via attributes
     get top() { return this.getAttribute("top"); }
     set top(value) { this.setAttribute("top", value); }
     get left() { return this.getAttribute("left"); }
@@ -899,12 +931,13 @@ export default class VNTextboxElement extends HTMLElement {
     set startDelay(value) { this.setAttribute("start-delay", String(value)); }
     get endDelay() { return this.getAttribute("end-delay"); }
     set endDelay(value) { this.setAttribute("end-delay", String(value)); }
-    get player() { return this.closest("visual-novel"); }
+    get player() { return this.closest("vn-player"); }
     set player(value) { throw new Error("`player` (VNPlayerElement) is read-only."); }
     get scene() { return this.closest("vn-scene"); }
     set scene(value) { throw new Error("`scene` (VNSceneElement) is read-only."); }
 
-    // --- Public Methods (unchanged) ---
+    // Classic JS-style getters and setters
+
     getPlayer() { return this.player; }
     getScene() { return this.scene; }
     getTop() { return this.top; }
@@ -946,6 +979,15 @@ export default class VNTextboxElement extends HTMLElement {
         this.#clearTimeouts();
         this.remove();
         this.dispatchEvent(new CustomEvent("destroy", { bubbles: false }));
+    }
+
+    remove(preventDefault = true) {
+        this.destroy();
+
+        // Call the parent remove method if not prevented
+        if (!preventDefault) {
+            super.remove(); 
+        }
     }
 
     /** Manually triggers the proceed action (if possible). */

@@ -1,5 +1,5 @@
 import VNCommand from "./VNCommand.js";
-import VNPlayerElement from "../components/visual-novel.js";
+import VNPlayerElement from "../components/vn-player.js";
 import VNSceneElement from "../components/vn-scene.js";
 
 import { VNCommandIf, VNCommandElse } from "./commands/VNCommandIf.js";
@@ -10,9 +10,13 @@ import VNCommandSetActorState from "./commands/VNCommandSetActorState.js";
 import VNCommandEvalJS from "./commands/VNCommandEvalJS.js";
 import VNCommandAnimate from "./commands/VNCommandAnimate.js";
 import VNCommandPick from "./commands/VNCommandPick.js";
-import VNCommandChoice from "./commands/VNCommandChoice.js"; //added import for choice & pick commands
+import VNCommandChoice from "./commands/VNCommandChoice.js";
 import VNCommandWait from "./commands/VNCommandWait.js";
 
+/**
+ * Represents a command block that can be executed at runtime.
+ * @todo - Full specification of the command queue system.
+ */
 export default class VNCommandQueue {
     i = 0;
     commands = [];
@@ -21,6 +25,12 @@ export default class VNCommandQueue {
     parentQueue = null;
     _isQueueFromSCENE = false;
 
+    /**
+     * Creates a new VNCommandQueue instance.
+     * @param {VNPlayerElement} player - The VNPlayerElement instance that owns this queue.
+     * @param {VNCommandQueue | null} parentQueue - The parent queue. If this is null then it is the root queue.
+     * @param {VNCommand[]} commands - An array of VNCommand instances to execute.
+     */
     constructor(
         { player, parentQueue = null, commands = [], i = 0 } = {},
         ...initialCommands
@@ -69,6 +79,13 @@ export default class VNCommandQueue {
         }
     }
 
+    /**
+     * Parses all arguments passed as commands and returns an array of VNCommand instances.
+     * This method is primarily used by the VNCommandQueue's constructor to parse the commands passed to it,
+     * but it can also be used by other sources to parse commands to give to the player.
+     * @param  {...any} commandsToParse
+     * @returns {VNCommand[]} - An array of VNCommand instances.
+     */
     parseCommands(...commandsToParse) {
         let result = [];
         let lastIfCommand = null;
@@ -117,6 +134,9 @@ export default class VNCommandQueue {
                 console.log(`\x1b[31mVNQ Parse: Animate command detected.\x1b[0m`);
                 parsedCommand.queue = this;
             } else if (
+                // If an object is passed, check if it's a JSON object with a type property
+                // This is so we can support a universal API for building the entire VN's execution queue
+                // The functions used in user scripts return these objects instead of VNCommand instances directly
                 typeof currentItem === "object" &&
                 currentItem !== null &&
                 currentItem.type
@@ -166,7 +186,16 @@ export default class VNCommandQueue {
         return result;
     }
 
-    /** Parses a specific command defined as a plain object. */
+    /**
+     * Parses a JSON object into a VNCommand instance.
+     * 
+     * *This engine can parse pure JSON objects. Every commmand has an equivalent JSON representation.
+     * The reason for this is to allow third parties to create their own pipeline to build a runnable scene.*
+     * 
+     * @param {*} commandObject 
+     * @returns {VNCommand} - The parsed VNCommand instance.
+     * @todo - Add support for `queue` type so nested queues can be parsed as well.
+     */
     parseApiObject(commandObject) {
         switch (commandObject.type) {
             case "say":
@@ -208,20 +237,20 @@ export default class VNCommandQueue {
             case "start":
                 return new VNCommandStart(this);
             case 'if':
-                 if (typeof commandObject.conditionFunc !== 'function' || !(commandObject.trueBranchQueue instanceof VNCommandQueue)) {
-                     console.error("VNQ Parse Error: Invalid 'if' object structure. Requires conditionFunc (function) and trueBranchQueue (VNCommandQueue).", commandObject); return null;
-                 }
+                if (typeof commandObject.conditionFunc !== 'function' || !(commandObject.trueBranchQueue instanceof VNCommandQueue)) {
+                    console.error("VNQ Parse Error: Invalid 'if' object structure. Requires conditionFunc (function) and trueBranchQueue (VNCommandQueue).", commandObject); return null;
+                }
                 return new VNCommandIf(this, commandObject.conditionFunc, commandObject.trueBranchQueue);
-             case 'else':
-                  if (!(commandObject.commandsQueue instanceof VNCommandQueue)) {
-                      console.error("VNQ Parse Error: Invalid 'else' object. Requires commandsQueue (VNCommandQueue).", commandObject); return null;
-                  }
-                 return new VNCommandElse(this, commandObject.commandsQueue);
-             case 'noop':
-                 return null;
-             case 'error':
-                 console.error("Scripting Error reported via command:", commandObject.message || "No message provided.", commandObject);
-                 return null;
+            case 'else':
+                if (!(commandObject.commandsQueue instanceof VNCommandQueue)) {
+                    console.error("VNQ Parse Error: Invalid 'else' object. Requires commandsQueue (VNCommandQueue).", commandObject); return null;
+                }
+                return new VNCommandElse(this, commandObject.commandsQueue);
+            case 'noop':
+                return null;
+            case 'error':
+                console.error("Scripting Error reported via command:", commandObject.message || "No message provided.", commandObject);
+                return null;
             case 'pick':
                 console.log("Parsing PICK object:", commandObject); // Logs the incoming object
                 if (Array.isArray(commandObject.choices)) {
@@ -237,7 +266,7 @@ export default class VNCommandQueue {
                 }
                 return new VNCommandChoice(this, commandObject.text, commandObject.commandsQueue);
             case "wait":
-                return new VNCommandWait(this, commandObject.time || "0s"); 
+                return new VNCommandWait(this, commandObject.time || "0s");
             case "eval":
                 if (typeof commandObject.execFunc !== "function") {
                     console.error(

@@ -1,5 +1,5 @@
 /**
- * @file /components/visual-novel.js
+ * @file /components/vn-player.js
  */
 
 import VNCommandAnimate from "../engine/commands/VNCommandAnimate.js";
@@ -72,19 +72,19 @@ export default class VNPlayerElement extends HTMLElement {
 
         if (!this.#projectElement) {
             console.error(
-                "<visual-novel> requires a <vn-project> child element to load assets and project data."
+                "<vn-player> requires a <vn-project> child element to load assets and project data."
             );
         }
 
         if (!this.#sceneElement) {
             console.error(
-                "<visual-novel> requires a <vn-scene> child element to display the game."
+                "<vn-player> requires a <vn-scene> child element to display the game."
             );
         }
 
         if (!this.#scriptElement) {
             console.warn(
-                '<visual-novel> does not have a <script type="text/vn-script"> child element. No game script will be loaded.'
+                '<vn-player> does not have a <script type="text/vn-script"> child element. No game script will be loaded.'
             );
         } else {
             await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -130,7 +130,21 @@ export default class VNPlayerElement extends HTMLElement {
     getMainQueue() {
         return this.#mainScriptQueue;
     }
+    /**
+     * @todo Define all the `runtime_` prefixed methods in here instead without the prefix.
+     * This is also good to check which names collide with the runtime API.
+     */
+    #runtimeBase = {};
 
+    /**
+     * The context in which scripts are run in. The entire API for user scripts exists here at runtime.
+     * It can be thought of as a script's "global" scope at runtime.
+     */
+    #runtime = {
+        player: this,
+        _lastPlayedQueue: null,
+    };
+    
     /**
      * Runs the script content from the <script> element or a provided string.
      * @param {string} [string] - Optional string to run as script content.
@@ -196,17 +210,19 @@ export default class VNPlayerElement extends HTMLElement {
             this.#runtime
         );
 
-        /** @todo create queue before calling the script */
         scriptFunction.call(this.#runtime);
+
         console.log("Main script function call completed.");
 
         if (this.#runtime._lastPlayedQueue) {
             if (this.#runtime._lastPlayedQueue instanceof VNCommandQueue) {
                 this.#mainScriptQueue = this.#runtime._lastPlayedQueue;
+
                 console.log(
                     "Script loaded. Main queue set:",
                     this.#mainScriptQueue
                 );
+
                 if (this.#mainScriptQueue) {
                     console.log(
                         "VNPlayer: Auto-starting execution of main queue."
@@ -215,6 +231,7 @@ export default class VNPlayerElement extends HTMLElement {
                     this.isPlaying = true;
                     this.continueExecution();
                 }
+
             } else {
                 console.error(
                     "Script loaded, but the object stored by play() is not a VNCommandQueue instance.",
@@ -318,8 +335,7 @@ export default class VNPlayerElement extends HTMLElement {
 
         this.#executionPaused = false;
         console.log(
-            `--- Execution Loop Tick ${
-                continueImmediately ? "Continuing" : "Paused/Ended"
+            `--- Execution Loop Tick ${continueImmediately ? "Continuing" : "Paused/Ended"
             } ---`
         );
     }
@@ -340,8 +356,7 @@ export default class VNPlayerElement extends HTMLElement {
                 if (command && typeof command.execute === "function") {
                     this.#currentQueue.i++;
                     console.log(
-                        `Proceed: Queue index advanced from ${commandIndex} to ${
-                            this.#currentQueue.i
+                        `Proceed: Queue index advanced from ${commandIndex} to ${this.#currentQueue.i
                         }`
                     );
 
@@ -397,7 +412,7 @@ export default class VNPlayerElement extends HTMLElement {
         // this runtime_ prefix needs to go. let's just create a #runtimeBase object where the functions are defined.
         this.#runtime.player = this;
         this.#runtime.SCENE = this.#runtime_SCENE;
-        this.#runtime.play = this.#runtime_play;
+        this.#runtime.PLAY = this.#runtime_PLAY;
         this.#runtime.IF = this.#runtime_IF;
         this.#runtime.ELSE = this.#runtime_ELSE;
         this.#runtime.CHECK = this.#runtime_CHECK;
@@ -497,6 +512,25 @@ export default class VNPlayerElement extends HTMLElement {
             `Creating runtime function for actor: ${uid} (Display: ${displayName})`
         );
 
+        /**
+         * Object and function that lives in the global scope of the scene runtime
+         * so actors may be referenced by their name directly. It also makes writing
+         * dialogue a lot easier.
+         * @example Here is how it is used in user scripts:
+         * ```js
+         * SCENE(
+         *   harumi
+         *  `Hello, world!`,
+         *
+         *  you
+         *  `What's up?`,
+         *  
+         *  // Or like this
+         *  harumi `Just testing this out.`,
+         * )
+         * ```
+         * @todo Wrap in a Proxy to handle the `delete` operation so we can remove the actor's associated element from the scene.
+         */
         const actorFunc = (strings, ...values) => {
             const text = strings.reduce(
                 (acc, str, i) => acc + str + (values[i] || ""),
@@ -511,8 +545,8 @@ export default class VNPlayerElement extends HTMLElement {
             };
         };
 
-        // getter/setter for the actor's name. this changes the `name` attribute of the actor instance.
-        Object.defineProperty(actorFunc, "NAME", {
+        // getter/setter for the actor instace's display name. this does not persist
+        Object.defineProperty(actorFunc, "name", {
             get: () => {
                 console.log(`Getter called for ${uid}.NAME`);
                 return actorDef.getAttribute("name");
@@ -520,7 +554,7 @@ export default class VNPlayerElement extends HTMLElement {
 
             set: (newName) => {
                 console.log(
-                    `Setter called for ${uid}.NAME with value:`,
+                    `Setter called for ${uid}.name with value:`,
                     newName
                 );
                 let valueToSet;
@@ -538,7 +572,25 @@ export default class VNPlayerElement extends HTMLElement {
             configurable: true,
             enumerable: true,
         });
-        
+
+        // getter for the actor's definition
+        Object.defineProperty(actorFunc, "definition", {
+            /**
+             * @returns {VNActorElement | null} The actor definition element inside <vn-assets>
+             */
+            get: () => {
+                console.log(`(assetFunc) Asset definition referenced: ${uid}`);
+                return actorDef;
+            },
+            configurable: true,
+            enumerable: true,
+        });
+
+        /**
+         * Directly animate an actor element using a VNAnimation or creating one using keyframes and options.
+         * @todo Document arguments/overloads
+         * @todo Refactor this to be more readable and less verbose
+         */
         actorFunc.animate = (...args) => {
             console.log(`API: Building VNCommandAnimate for ${uid}.`);
             let wait = false;
@@ -604,10 +656,11 @@ export default class VNPlayerElement extends HTMLElement {
             );
         };
 
+        // gets the associated <vn-actor> definition equivalent, if any
         Object.defineProperty(actorFunc, "definition", {
             get: () => {
                 console.log(`Getter called for ${uid}.definition`);
-                return actorDef;
+                return actorDef || null;
             },
             configurable: true,
             enumerable: true,
@@ -660,7 +713,7 @@ export default class VNPlayerElement extends HTMLElement {
         return element;
     };
 
-    #runtime_play = (sceneQueue) => {
+    #runtime_PLAY = (sceneQueue) => {
         console.log("API: play called with argument:", sceneQueue);
         console.log(
             `API: play - Checking typeof argument: ${typeof sceneQueue}`
@@ -693,6 +746,7 @@ export default class VNPlayerElement extends HTMLElement {
             this.#runtime._lastPlayedQueue = null;
         }
     };
+
     #runtime_IF = (conditionOrValue, ...commands) => {
         console.log("API: IF called");
         let conditionFunc;
@@ -714,6 +768,7 @@ export default class VNPlayerElement extends HTMLElement {
             trueBranchQueue: trueBranchQueue,
         };
     };
+
     #runtime_ELSE = (...commands) => {
         console.log("API: ELSE called");
         const elseBranchQueue = new VNCommandQueue(
@@ -722,12 +777,14 @@ export default class VNPlayerElement extends HTMLElement {
         );
         return { type: "else", commandsQueue: elseBranchQueue };
     };
+
     #runtime_CHECK = (expressionResult) => {
         console.log("API: CHECK called");
         const checkFunc = () => expressionResult;
         checkFunc._isCheckFunction = true;
         return checkFunc;
     };
+
     #runtime_$ = (func) => {
         console.log("API: $ called with typeof:", typeof func);
 
@@ -749,6 +806,7 @@ export default class VNPlayerElement extends HTMLElement {
             execFunc: func,
         };
     };
+
     #runtime_ADD = {
         IMAGE: (uid, options = {}) => {
             console.log(`API: ADD.IMAGE called: ${uid}`);
@@ -788,20 +846,51 @@ export default class VNPlayerElement extends HTMLElement {
         },
     };
 
+    /**
+     * @todo Add the ability for users to create assets dynamically at runtime.
+     */
+    #runtime_CREATE = {
+        // IMAGE: (uid, options = {}) => { },
+        // AUDIO: (uid, options = {}) => { },
+        // ACTOR: (uid, options = {}) => { },
+        // STYLE: (uid, options = {}) => { },
+        // TEXTBOX: (uid, options = {}) => { },
+        // ANIMATION: (uid, options = {}) => { },
+        // VIDEO: (uid, options = {}) => { },
+    };
+
+    /**
+     * @todo Add the ability to create event listeners. (low priority, only added here so i remember)
+     */
+    #runtime_EVENT = (eventName, ...commands) => {
+
+    };
+
+    /**
+     * @todo Add an interface for interacting with the player element.
+     */
+    #runtime_PLAYER = {
+        SCENE: {
+            get SHOW() {
+
+            },
+        }
+    };
+
     #runtime_START = { type: "start" };
+
     #runtime_CHOICE = (text, ...commands) => {
         console.log(`API: CHOICE called: "${text}"`);
         const choiceQueue = new VNCommandQueue({ player: this }, ...commands);
         return { type: "choice", text: text, queue: choiceQueue };
     };
+
     #runtime_PICK = (...choices) => {
-        console.log("API: PICK called");
-        const validChoices = choices.filter((c) => c && c.type === "choice");
-        if (validChoices.length !== choices.length) {
-            console.warn("PICK contained non-CHOICE arguments.");
-        }
-        return { type: "PICK", choices: validChoices };
+        console.log("API: \x1b[34mPICK called");
+        // removed check for non-choice arguments so we can have text wherever we want
+        return { type: "pick", choices }
     };
+
     #runtime_text = (strings, ...values) => {
         console.log("API: TEXT called");
         const text = strings.reduce(
@@ -870,6 +959,7 @@ export default class VNPlayerElement extends HTMLElement {
             return null;
         }
     };
+
     #runtime_setInnerHTML = (value) => {
         const vnScene = this.getScene();
         if (vnScene) {
@@ -881,19 +971,7 @@ export default class VNPlayerElement extends HTMLElement {
         }
     };
 
-    /**
-     * @todo Define all the `runtime_` prefixed methods in here instead without the prefix.
-     * This is also good to check which names collide with the runtime API.
-     */
-    #runtimeBase = {};
-
-    /**
-     * The context in which scripts are run in. The entire API exists here at runtime.
-     */
-    #runtime = {
-        player: this,
-        _lastPlayedQueue: null,
-    };
+    
 }
 
-customElements.define("visual-novel", VNPlayerElement);
+customElements.define("vn-player", VNPlayerElement);

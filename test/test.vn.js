@@ -22,14 +22,11 @@ const fadeIn = ANIMATION(
 );
 
 const testScene = SCENE(
-
     // actor and background image doesn't fit the example dialogue but whatever i'm just testing lol
     ADD.ACTOR(`haruka`, {
         style: `opacity: 0;`,
     }),
-
     
-
     $(function () {
         haruka.reputation = {
             you: 50,
@@ -50,13 +47,37 @@ const testScene = SCENE(
         volume: 0.05,
     }),
 
-    WAIT('10s'),
-
     haruka
     `I've been thinking lately... Um...`,
 
     text
     `<em>It's apparent that Haruka is trying to get something off her chest---You can tell by the way she <b>fidgets</b> with her hands and avoids eye contact.</em>`,
+
+    PICK(
+        "(Header text) What do you want to say?",
+
+        CHOICE(
+            "I don't have time for this.",
+
+            you
+            `I don't have time for this.`,
+
+            haruka
+            `Oh, um...`,
+        ),
+
+        CHOICE(
+            "What's up?",
+
+            you
+            `What's up?`,
+
+            haruka
+            `I... I just wanted to ask you something...`,
+        ),
+
+        "Footer text.",
+    ),
 
     haruka
     `Well, you know how you borrowed my Dora the Explorer sneakers?`,

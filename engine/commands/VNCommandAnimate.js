@@ -4,13 +4,21 @@ import VNCommand from "../VNCommand.js";
 
 export default class VNCommandAnimate extends VNCommand {
     type = 'animate';
-    #wait = false;
+
     /**
+     * Whether to wait for the animation to finish before executing the next command.
+     * @type {boolean}
+     */
+    #wait = false;
+    
+    /**
+     * The target element or asset definition UID of the element to animate.
      * @type {Element | string}
      */
     #target = null;
 
     /**
+     * The animation to execute on the target element.
      * @type {VNAnimation | null}
      */
     #animation = null;

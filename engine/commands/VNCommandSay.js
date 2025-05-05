@@ -2,10 +2,34 @@ import VNCommand from "../VNCommand.js";
 
 export default class VNCommandSay extends VNCommand {
     type = "say";
+
+    /**
+     * The definition UID that references the actor's asset.
+     * @todo support anonymous actors (`?"Random Student"`) to set speaker name without an existing definition.
+     * @type {string | null}
+     */
     actorUid = null;
+    
+    /**
+     * The name of the actor to display in the textbox.
+     * @type {string}
+     */
     actorName = null;
+    
+    /**
+     * The text to display in the textbox.
+     * @type {string}
+     */
     text = "";
+    
+    /**
+     * Whether the text should cause the text-box to display a speaker.
+     */
     isMonologue = false;
+
+    /**
+     * The textbox instance that is currently displaying the text.
+     */
     #textboxInstance = null;
 
     constructor(queue, actorUid, actorName, text, isMonologue = false) {
