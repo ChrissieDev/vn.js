@@ -218,6 +218,8 @@ export default class VNTextboxElement extends HTMLElement {
             .indicator:not(.visible) {
                 display: none;
             }
+
+            
         </style>
         <div class="title" part="title"><slot name="title"></slot></div>
         <div class="content" part="content">

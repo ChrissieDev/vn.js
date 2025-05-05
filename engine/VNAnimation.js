@@ -3,7 +3,16 @@
  * Wrapper for Web Animations API.
  */
 export default class VNAnimation {
-
+    options = {
+        duration: 1000,
+        easing: `linear`,
+        fill: `forwards`,
+        delay: 0,
+        iterations: 1,
+        direction: `normal`,
+        composite: `replace`,
+        wait: false,
+    }
     /**
      * Create a new reusable animation. It's just a wrapper for the Web Animations API.
      * @param {Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions} keyframes Keyframes for the animation.

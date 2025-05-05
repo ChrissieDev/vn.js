@@ -6,6 +6,7 @@
  */
 import "./vn-actor.js";
 import VNTextboxElement from "./text-box.js";
+import VNPlayerElement from "./vn-player.js";
 
 /**
  * Helper function to convert RGB values to HSL.
@@ -104,6 +105,10 @@ export default class VNSceneElement extends HTMLElement {
      * @todo not necessary. the analyzeImageForAmbientFilter() returns a promise anyway.
      */
     #isAnalyzingAmbient = false;
+
+    get currentTextboxDefinition() {
+        return this.getAttribute("textbox");
+    }
 
     static get observedAttributes() {
         return ["textbox"];
@@ -921,8 +926,7 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
-    /** Creates a new VNTextboxElement instance based on the scene's 'textbox' definition attribute. */
-    acquireTextbox() {
+    cloneCurrentTextbox(content = "") {
         let newTextbox = null;
         const definitionUid = this.getAttribute("textbox");
         const player = this.player;
@@ -932,11 +936,14 @@ export default class VNSceneElement extends HTMLElement {
             if (definition && definition instanceof VNTextboxElement) {
                 newTextbox = definition.cloneNode(true);
                 newTextbox.setAttribute("ref", definitionUid);
+                newTextbox.textContent = content;
             } else {
                 console.error(
                     `Scene: Textbox definition "${definitionUid}" not found or not a <text-box>. Falling back.`,
                     definition
                 );
+
+                return null;
             }
         }
 
@@ -945,8 +952,16 @@ export default class VNSceneElement extends HTMLElement {
             newTextbox = document.createElement("text-box");
         }
 
-        this.addElement(newTextbox);
+        return newTextbox;
+    }
 
+    /** 
+     * Creates a new VNTextboxElement instance based on the scene's 'textbox' definition attribute.
+     * @returns {VNTextboxElement | null} The new textbox instance.
+     */
+    acquireTextbox() {
+        const newTextbox = this.cloneCurrentTextbox();
+        this.addElement(newTextbox);
         return newTextbox;
     }
 

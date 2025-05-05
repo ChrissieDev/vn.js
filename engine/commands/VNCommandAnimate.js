@@ -64,7 +64,8 @@ export default class VNCommandAnimate extends VNCommand {
             console.error(`VNCommandAnimation: Target element not found for UID "${this.#target}".`);
             return true; // Skip command if target is missing
         }
-        console.log("API: Wait is set to", this.wait);
+        
+        console.log("API: Wait is set to", this.#wait);
 
         if (this.#wait) {
             return new Promise((resolve) => {
