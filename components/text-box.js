@@ -980,16 +980,7 @@ export default class VNTextboxElement extends HTMLElement {
         this.remove();
         this.dispatchEvent(new CustomEvent("destroy", { bubbles: false }));
     }
-
-    remove(preventDefault = true) {
-        this.destroy();
-
-        // Call the parent remove method if not prevented
-        if (!preventDefault) {
-            super.remove(); 
-        }
-    }
-
+    
     /** Manually triggers the proceed action (if possible). */
     proceed() {
         if (!this.closest("vn-assets")) {
