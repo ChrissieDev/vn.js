@@ -5,16 +5,19 @@
  */
 
 // You can define reusable animations using ANIMATION. It returns a VNAnimation which is a Web Animations API wrapper with some extra functionality.
-const fadeIn = ANIMATION([
-    { opacity: 0 },
-    { opacity: 1 },
+const transition = ANIMATION([
+    { transform: `translate(-2000px, 0px) scale(1.6)` },
+    { transform: `translate(0px, 0px) scale(1.6)` },
 ],
     {
-        duration: 2000,
-        easing: `linear`,
+        duration: 1000,
+        // quadratic ease-out function
+        easing: `cubic-bezier(0.25, 0.1, 0.25, 1)`,
         fill: `forwards`,
     }
 );
+
+let user = `Anon`;
 
 // Create a scene. Commands inside are automatically parsed by the engine into VNCommand objects.
 const testScene = SCENE(
@@ -23,46 +26,13 @@ const testScene = SCENE(
     // they must be defined inside the project's <vn-assets> element with their default state.
     // Their element, with its default state, gets cloned and added to the scene as an instance.
     ADD.ACTOR(`haruka`, {
-        style: `opacity: 0;`,
+        style: `transform: translate(-2000px, 0px) scale(1.6);`, // applying styles to the element
     }),
-
-    $(function () {
-        haruka.reputation = {
-            you: 50,
-        };
-    }),
-
     ADD.IMAGE(`back-of-classroom-day`),
-    // SELECT(`back-of-classroom-day`).animate(fadeIn, { wait: true }),
-
-    haruka
-    `Hey, ${user}, do you have a moment?`,
-    
-    WAIT(async () => {
-        return await haruka.animate(fadeIn, {
-            wait: true,
-        });
-        
-    }),
-    
-    
     ADD.AUDIO(`everyday`, {
-        volume: 0.05,
+        volume: 0.3,
     }),
-
-    // Actors may be referenced as variables in the script. They are automatically added to the context when added to the scene.
-    // No need to write `this.haruka`, although this is also valid.
     
-
-    haruka
-    `Hello, world!`, // An actor variable is a template literal function, which makes this valid javascript.
-    `My name is ${haruka.name}.`, // Consecutive strings are automatically associated with the actor whose template literal function was last called.
-    
-    
-    // Even though actor variables are functions, they can have properties like any javascript object.
-    // actor.animate() is a function that takes a VNAnimation and applies it to the actor's element.
-    haruka.animate(fadeIn, { wait: true }),
-
     // This adds a speaker-less textbox to the scene with a list of choices.
     PICK(
         "What do you want to say?", // Text is also okay if you want a header.
@@ -114,7 +84,7 @@ const testScene = SCENE(
         console.log("Hello, eval! This is okay because we are already running user code. It is up to the user to avoid executing malicious code here."); 
     `),
 
-    $(`back-of-classroom-day`)?.animate?.(fadeIn, { wait: true }), // You can also use the $ command to get elements by their unique id.
+    $(`back-of-classroom-day`)?.animate?.(transition, { wait: true }), // You can also use the $ command to get elements by their unique id.
 );
 
 // signaling the player to run the scene

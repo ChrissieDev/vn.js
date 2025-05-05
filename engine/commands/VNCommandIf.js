@@ -52,13 +52,13 @@ export class VNCommandIf extends VNCommand {
 
 export class VNCommandElse extends VNCommand {
     type = 'else';
-    commandsQueue = null;
+    commands = null;
 
-     constructor(queue, commandsQueue) {
+     constructor(queue, commands) {
          super(queue);
-         if (!(commandsQueue instanceof VNCommandQueue)) throw new Error("VNCommandElse requires a VNCommandQueue.");
-         this.commandsQueue = commandsQueue;
-         if (this.commandsQueue) this.commandsQueue.parentQueue = this.queue;
+         if (!(commands instanceof VNCommandQueue)) throw new Error("VNCommandElse requires a VNCommandQueue.");
+         this.commands = commands;
+         if (this.commands) this.commands.parentQueue = this.queue;
      }
 
      /** Links this ELSE's command queue to the appropriate preceding IF or ELSE IF command. */
@@ -74,7 +74,7 @@ export class VNCommandElse extends VNCommand {
          }
 
          if (targetIf.falseBranchQueue === null) {
-             targetIf.falseBranchQueue = this.commandsQueue;
+             targetIf.falseBranchQueue = this.commands;
              return true;
          }
          else {

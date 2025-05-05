@@ -72,7 +72,7 @@ export default class VNCommandQueue {
                 this.#propagateSceneToCommand(cmd.trueBranchQueue);
                 this.#propagateSceneToCommand(cmd.falseBranchQueue);
             } else if (cmd instanceof VNCommandElse) {
-                this.#propagateSceneToCommand(cmd.commandsQueue);
+                this.#propagateSceneToCommand(cmd.commands);
             }
         } else if (cmd instanceof VNCommandQueue) {
             cmd.scene = this.#scene;
@@ -242,10 +242,10 @@ export default class VNCommandQueue {
                 }
                 return new VNCommandIf(this, commandObject.conditionFunc, commandObject.trueBranchQueue);
             case 'else':
-                if (!(commandObject.commandsQueue instanceof VNCommandQueue)) {
-                    console.error("VNQ Parse Error: Invalid 'else' object. Requires commandsQueue (VNCommandQueue).", commandObject); return null;
+                if (!(commandObject.commands instanceof VNCommandQueue)) {
+                    console.error("VNQ Parse Error: Invalid 'else' object. Requires commands (VNCommandQueue).", commandObject); return null;
                 }
-                return new VNCommandElse(this, commandObject.commandsQueue);
+                return new VNCommandElse(this, commandObject.commands);
             case 'noop':
                 return null;
             case 'error':
@@ -254,17 +254,19 @@ export default class VNCommandQueue {
             case 'pick':
                 console.log("Parsing PICK object:", commandObject); // Logs the incoming object
                 if (Array.isArray(commandObject.choices)) {
-                    commandObject.choices.forEach((c, index) => {
+                    // there shouldn't be too many choices, so we can get away with iterating over them
+                    for (let index = 0; index < commandObject.choices.length; index++) {
+                        const c = commandObject.choices[index];
                         console.log(`Choice ${index} instanceof VNCommandChoice:`, c instanceof VNCommandChoice, c); // Log each choice
-                    });
+                    }
                 }
                 return new VNCommandPick(this, commandObject.choices);
             case 'choice':
-                if (typeof commandObject.text !== 'string' || !(commandObject.commandsQueue instanceof VNCommandQueue)) {
-                    console.error("VNQ Parse Error: Invalid 'CHOICE' object structure. Requires text (string) and commandsQueue (VNCommandQueue).", commandObject);
+                if (typeof commandObject.text !== 'string' || (Array.isArray(commandObject?.commands || null))) {
+                    console.error("VNQ Parse Error: Invalid 'CHOICE' object structure. Requires text (string) and commands (VNCommandQueue).", commandObject);
                     return null;
                 }
-                return new VNCommandChoice(this, commandObject.text, commandObject.commandsQueue);
+                return new VNCommandChoice(this, commandObject.text, commandObject.commands);
             case "wait":
                 return new VNCommandWait(this, commandObject.time || "0s");
             case "eval":
@@ -313,10 +315,22 @@ export default class VNCommandQueue {
 
         try {
             const res = command.execute();
+
             if (res instanceof Promise) {
-                res.then(() => {
+                console.log(
+                    `VNQ executeCurrent: Command ${this.i} returned a promise.`,
+                    command
+                );
+                res.then((value) => {
                     this.i++;
-                    this.player.continueExecution();
+                    
+                    if (value instanceof VNCommandQueue) {
+                        // a queue was returned. we have to nest into it
+                        value.parentQueue = this;
+                        value.scene = this.scene;
+                        this.player.setCurrentQueue(value);
+                        this.player.continueExecution();
+                    }
                 });
                 continueExecution = false; // Pause execution until the promise resolves
             } else {

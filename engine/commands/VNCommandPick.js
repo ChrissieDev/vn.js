@@ -1,8 +1,12 @@
 import VNCommand from "../VNCommand.js";
 import VNCommandChoice from "./VNCommandChoice.js";
 import html from "../../utils/html.js";
+import VNCommandQueue from "../VNCommandQueue.js";
+import VNTextboxElement from "../../components/text-box.js";
 
 export default class VNCommandPick extends VNCommand {
+    type = 'pick';
+
     constructor(queue, items = []) {
         super(queue);
         if (!Array.isArray(items)) {
@@ -14,38 +18,10 @@ export default class VNCommandPick extends VNCommand {
     /**
      * Check if the object adheres to the VNCommandChoice JSON structure.
      */
-    validateChoiceAPIObject(obj) {
+    static validateObject(obj) {
         
         if (typeof obj !== "object") {
             return false;    
-        }
-
-        if (obj.type) {
-            if (typeof obj.type !== "string") {
-                return false;
-            }
-
-            if (obj.type !== "choice") {
-                return false;
-            }
-        } else {
-            return false;
-        }
-
-        if (obj.text) {
-            if (typeof obj.text !== "string") {
-                return false;
-            }
-        } else {
-            return false;
-        }
-
-        if (obj.commands) {
-            if (Array.isArray(obj.commands)) {
-                return false;
-            }
-        } else {
-            return false;
         }
 
         return true;
@@ -63,53 +39,79 @@ export default class VNCommandPick extends VNCommand {
             return true; // Skip command if no choices are available
         }
 
-        // the thing to render choices in the text boxes / ui
+        /**
+         * @type {VNTextboxElement}
+         */
         const textBox = this.scene.cloneCurrentTextbox("", {
             attributes: {
-                choices: "",
+                choices: "", // must enable the choices attribute to enable choice behavior for <text-box>
             }
         });
+        console.log(this);
+        textBox.setCommandSource(this);
 
         console.log(textBox);
 
+        // return a promise that resolves to a VNCommandQueue for the player to nest into
+        return new Promise((resolve) => {
+            for (const choice of this.items) {
+                let onClickWrapper = null;
+                let element = null;
+    
+                if (choice instanceof VNCommandChoice) {
+                    console.log(`\x1b[33mCHOICE: ${choice.text}\x1b[0m`);
+                    element = html`
+                        <button class="choice-button" slot="choices" data-command="${choice.command}">
+                            ${choice.text}
+                        </button>
+                    `;
+    
+                    element.addEventListener("click", (e) => {
+                        textBox.destroy();
+                        resolve(choice.execute());
+                    });
+                } else if (typeof choice === "string") {
+                    console.log(`\x1b[33mCHOICE: String passed as choice: "${choice}", converted to HTML element.\x1b[0m`);
+                    element = html`<span class="choice-text">${choice}</span>`;
+                } else if (choice instanceof HTMLElement) {
+                    element = choice;
+                } else if (VNCommandPick.validateObject(choice)) {
+                    const queue = choice.queue;
+                    const commands = choice.commands;
+                    const text = choice.text;
+                    const newQueue = new VNCommandQueue({ player: this.player, parentQueue: queue }, ...commands);
+                    const command = new VNCommandChoice(queue, text, newQueue);
 
-        for (const choice of this.items) {
-            let element = null;
-            if (choice instanceof VNCommandChoice) {
-                console.log(`\x1b[33mCHOICE: ${choice.text}\x1b[0m`);
-                element = html`
-                    <button class="choice-button" data-command="${choice.command}">
-                        ${choice.text}
-                    </button>
-                `;
-                element.addEventListener("click", () => {
-                    this.queue.push(choice.execute.bind(choice));
-                });
-            } else if (typeof choice === "string") {
-                element = html`<span class="choice-text">${choice}</span>`;
-            } else if (choice instanceof HTMLElement) {
-                element = choice;
-            } else if (this.validateChoiceAPIObject(choice)) {
-
-            } else {
-                console.error("VNCommandPick: Invalid choice type. Expected VNCommandChoice, string, or HTMLElement.");
-                continue; // Skip invalid choice
+                    console.log(`\x1b[33mCHOICE: Object passed as choice: "${text}", converted to VNCommandChoice.\x1b[0m`);
+                    
+                    element = html`
+                        <button class="choice-button" slot="choices" data-command="${command.command}">
+                            ${text}
+                        </button>
+                    `;
+    
+                    element.addEventListener("click", (e) => {
+                        textBox.destroy();
+                        resolve(command.execute());
+                    });
+                } else {
+                    console.error("VNCommandPick: Invalid choice type. Expected VNCommandChoice, string, HTMLElement, or a valid API object:", choice); 
+                    continue; // Skip invalid choice
+                }
+    
+                element.classList.add("choice-item");
+                element.setAttribute("slot", "choices");
+                textBox.appendChild(element);
+                textBox.classList.add("choice-container");
+            };
+    
+            try {
+                scene.appendChild(textBox);
+            } catch (error) {
+                console.error("Failed to append choice container to the scene:", error);
+                return true; // Skip command if appending fails
             }
-
-            element.classList.add("choice-item");
-            element.setAttribute("slot", "choices");
-            textBox.appendChild(element);
-            textBox.classList.add("choice-container");
-        };
-
-        try {
-            scene.appendChild(textBox);
-        } catch (error) {
-            console.error("Failed to append choice container to the scene:", error);
-            return true; // Skip command if appending fails
-        }
-
-        // Pause the execution until a choice is made
-        return false;
+        });
+        
     }
 }

@@ -5,23 +5,26 @@ import VNCommandQueue from "../VNCommandQueue.js";
 export default class VNCommandChoice extends VNCommand {
     type = "choice";
     
-    constructor(queue, text, commandsQueue) {
+    constructor(queue, text, commands) {
         super(queue);
         
         if (typeof text !== "string") {
             throw new Error("CHOICE requires a text string.");
         }
         
-        if (!(commandsQueue instanceof VNCommandQueue)) {
+        if (!(commands instanceof VNCommandQueue)) {
             throw new Error("CHOICE requires a VNCommandQueue for its commands.");
         }
 
         this.text = text;
-        this.commandsQueue = commandsQueue;
+        this.commands = commands;
     }
 
+    /**
+     * 
+     * @returns {VNCommandQueue}
+     */
     execute() {
-        console.error("VNCommandChoice should not be executed directly. :C");
-        return true; // Skips the execution
+        return this.commands;
     }
 }

@@ -3,7 +3,7 @@
  * No dependencies. Provides basic type and constraint validation.
  */
 
-const Types = {
+export const Types = {
     STRING: 'string',
     NUMBER: 'number',
     BOOLEAN: 'boolean',
@@ -346,7 +346,7 @@ class ObjectSchema extends SchemaBase {
     }
 }
 
-const Schema = {
+export const Schema = {
     string: () => new StringSchema(),
     number: () => new NumberSchema(),
     boolean: () => new BooleanSchema(),
@@ -358,7 +358,7 @@ const Schema = {
     any: () => new SchemaBase(Types.ANY)
 };
 
-function runTests() {
+export function runTests() {
     console.log("Running Schema Tests");
     let testsPassed = 0;
     let testsFailed = 0;

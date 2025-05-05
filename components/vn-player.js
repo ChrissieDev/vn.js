@@ -787,7 +787,7 @@ export default class VNPlayerElement extends HTMLElement {
             { player: this },
             ...commands
         );
-        return { type: "else", commandsQueue: elseBranchQueue };
+        return { type: "else", commands: elseBranchQueue };
     };
 
     #runtime_CHECK = (expressionResult) => {
@@ -880,14 +880,13 @@ export default class VNPlayerElement extends HTMLElement {
 
     #runtime_CHOICE = (text, ...commands) => {
         console.log(`API: CHOICE called: "${text}"`);
-        const choiceQueue = new VNCommandQueue({ player: this }, ...commands);
-        return { type: "choice", text: text, queue: choiceQueue };
+        return { type: "choice", text: text, commands: commands };
     };
 
     #runtime_PICK = (...choices) => {
         console.log("API: \x1b[34mPICK called");
         // removed check for non-choice arguments so we can have text wherever we want
-        return { type: "pick", choices }
+        return { type: "pick", choices: choices };
     };
 
     #runtime_text = (strings, ...values) => {

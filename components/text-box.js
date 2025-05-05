@@ -1,3 +1,6 @@
+import VNCommand from "../engine/VNCommand.js";
+import html from "../utils/html.js";
+
 /**
  * @file text-box.js
  * Implements the VNTextboxElement custom element.
@@ -110,8 +113,8 @@ export default class VNTextboxElement extends HTMLElement {
         <style>
 
             @keyframes bump {
-                0% { transform: scale(0.95); opacity: 0; }
-                50% { transform: scale(1.05); opacity: 1; }
+                0% { transform: scale(0.97); opacity: 0; }
+                50% { transform: scale(1.03); opacity: 1; }
                 100% { transform: scale(1); }
             }
 
@@ -223,12 +226,15 @@ export default class VNTextboxElement extends HTMLElement {
         </style>
         <div class="title" part="title"><slot name="title"></slot></div>
         <div class="content" part="content">
-            <span class="text-display" part="text-display"></span>
+            <div class="choices" part="choices"><slot name="choices"></slot></div>
+            <span class="text-display" part="text-display">
+            
+            </span>
             <!-- NEW: Wrapper div specifically to hide the default slot -->
             <div class="source-content-wrapper">
                 <slot></slot> <!-- Default slot IS NOW HIDDEN RELIABLY -->
             </div>
-            <div class="choices" part="choices"><slot name="choices"></slot></div>
+            
             <span class="indicator" part="indicator">▶</span>
         </div>
     `;
@@ -296,7 +302,7 @@ export default class VNTextboxElement extends HTMLElement {
             this[prop] = value;
         }
     }
-
+    
     #parseDefinition() {
         const id = this.getAttribute("uid") || "anonymous_def";
         if (this.#isDefinitionParsed) return;
@@ -570,7 +576,7 @@ export default class VNTextboxElement extends HTMLElement {
                 this.#currentTextNode = currentNode;
                 this.#currentCharIndex = 0;
 
-                // *** NEW: Process hyphens here ***
+                // sequential hyphens automatically get replaced in the text content
                 this.#currentTextNodeProcessedContent = this.#processTextHyphens(currentNode.textContent);
 
                 // Create an empty text node in the shadow DOM to append characters to
@@ -625,9 +631,9 @@ export default class VNTextboxElement extends HTMLElement {
         const slot = this.shadowRoot.querySelector("slot:not([name])");
         const sourceNodes = slot ? slot.assignedNodes({ flatten: true }) : [];
 
-        // *** NEW: Recursive function to clone nodes and process text ***
+        // Recursive function to clone nodes and process text
         const cloneNodesRecursively = (nodesToClone, shadowTargetParent) => {
-            nodesToClone.forEach((node) => {
+            for (const node of nodesToClone) {
                 if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase() === 'wait') {
                     return; // Skip <wait> elements entirely when showing full text
                 }
@@ -646,12 +652,10 @@ export default class VNTextboxElement extends HTMLElement {
                         cloneNodesRecursively(Array.from(node.childNodes), elementClone); // Convert NodeList to Array
                     }
                 } else {
-                    // For other node types (like comments), just clone them directly
-                    // Use deep clone for simplicity here, assuming no other special handling needed
                     const deepClone = node.cloneNode(true);
                     shadowTargetParent.appendChild(deepClone);
                 }
-            });
+            }
         };
 
         // Start the recursive cloning process
@@ -661,8 +665,49 @@ export default class VNTextboxElement extends HTMLElement {
         this.#showIndicator(wasSkipped); // Show the proceed indicator after appropriate delay
     }
 
+    /**
+     * @type {VNCommand}
+     */
+    commandSource = null;
+
+    getCommandSource() {
+        return this.commandSource || null; // Return the command reference or null if not set
+    }
+
+    /**
+     * Sets the reference of the command that created this textbox.
+     * Used for identifying if this textbox should be deleted by the command on proceed.
+     * @param {VNCommand} command - The command that created this textbox.
+     */
+    setCommandSource(command) {
+        console.log("VNTextboxElement.setCommandSource() called with:", command);
+
+        if (!command && !(command instanceof VNCommand)) {
+            throw new Error("VNTextboxElement: `command` is not of type VNCommand. VNTextboxElement.setCommandSource() failed:", command);
+        }
+
+        this.commandSource = command; // Store the command reference
+    }
+
     getChoicesContainer() {
         return this.shadowRoot.querySelector(".choices") || null; // Return the choices container or null if not found
+    }
+
+    addChoiceItem(choiceItem = "VNTextboxElement.addChoiceItem()") {
+        if (typeof choiceItem === "string") {
+            choiceItem = html`${choiceItem}`; // Convert string to HTML element
+        }
+
+        // slot the choices into the shadow DOM
+        if (!choiceItem.hasAttribute("slot")) {
+            console.warn("VNTextboxElement: Choice item must have slot set to 'choices':", choiceItem);
+            choiceItem.setAttribute("slot", "choices"); // Set the slot attribute to "choices"
+        } else if (choiceItem.getAttribute("slot") !== "choices") {
+            console.warn("VNTextboxElement: Incorrectly slotted element for choice item:", choiceItem);
+            choiceItem.setAttribute("slot", "choices"); // Ensure the slot is set to "choices"
+        }
+
+        this.appendChild(choiceItem); // Append the choice element to the choices container
     }
 
 

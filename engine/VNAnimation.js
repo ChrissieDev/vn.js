@@ -13,6 +13,7 @@ export default class VNAnimation {
         composite: `replace`,
         wait: false,
     }
+    
     /**
      * Create a new reusable animation. It's just a wrapper for the Web Animations API.
      * @param {Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions} keyframes Keyframes for the animation.
