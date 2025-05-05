@@ -1,29 +1,27 @@
 /**
- * @file test.vn.js
- * This is a test script/an informal specification to follow when implementing the scripting system in the VNPlayerElement.
- * We'll build onto this as we continue to implement the engine.
+ * @file documentation.vn.js
+ * @fileoverview
+ * A documented, valid VNScript to be loaded with <vn-script> inside <vn-scene>.
  */
 
-let user = 'Anon';
-
-const fadeIn = ANIMATION(
-    [
-        { opacity: 0, filter: 'brightness(1) grayscale(0)' },
-        { opacity: 1, filter: 'brightness(1) grayscale(0)' },
-    ],
+// You can define reusable animations using ANIMATION. It returns a VNAnimation which is a Web Animations API wrapper with some extra functionality.
+const fadeIn = ANIMATION([
+    { opacity: 0 },
+    { opacity: 1 },
+],
     {
         duration: 2000,
-        easing: 'ease-in-out',
-        fill: 'forwards',
-    },
-    () => {
-        console.log('Animation complete!');
+        easing: `linear`,
+        fill: `forwards`,
     }
 );
 
+// Create a scene. Commands inside are automatically parsed by the engine into VNCommand objects.
 const testScene = SCENE(
-
-    // actor and background image doesn't fit the example dialogue but whatever i'm just testing lol
+    
+    // ADD is an object that contains all the command functions to add project-defined assets to the scene.
+    // they must be defined inside the project's <vn-assets> element with their default state.
+    // Their element, with its default state, gets cloned and added to the scene as an instance.
     ADD.ACTOR(`haruka`, {
         style: `opacity: 0;`,
     }),
@@ -52,64 +50,72 @@ const testScene = SCENE(
         volume: 0.05,
     }),
 
+    // Actors may be referenced as variables in the script. They are automatically added to the context when added to the scene.
+    // No need to write `this.haruka`, although this is also valid.
     
 
     haruka
-    `I've been thinking lately... Um...`,
-
-    text
-    `<em>It's apparent that Haruka is trying to get something off her chest---You can tell by the way she <b>fidgets</b> with her hands and avoids eye contact.</em>`,
-
-    haruka
-    `Well, you know how you borrowed my Dora the Explorer sneakers?`,
-    `It's just that... It's been three weeks and like, um...`,
-
-    text
-    `She looks like she might burst into tears any second now.`,
-
-    you
-    `I said I'd return them, didn't I?!`,
-    you
-    `Are you really going to cry over a pair of sneakers?`, // multiple lines by 'you' cause it to be treated as monologue, need fix
+    `Hello, world!`, // An actor variable is a template literal function, which makes this valid javascript.
+    `My name is ${haruka.name}.`, // Consecutive strings are automatically associated with the actor whose template literal function was last called.
     
-    haruka.animate([
-        { transform: 'rotate(0deg) scale(1.7)', transformOrigin: 'center center' },
-        { transform: 'rotate(180deg) scale(1.7)', transformOrigin: 'center center' },
-    ], {
-        duration: 500,
-        easing: 'linear',
-        fill: 'forwards',
+    
+    // Even though actor variables are functions, they can have properties like any javascript object.
+    // actor.animate() is a function that takes a VNAnimation and applies it to the actor's element.
+    haruka.animate(fadeIn, { wait: true }),
+
+    // This adds a speaker-less textbox to the scene with a list of choices.
+    PICK(
+        "What do you want to say?", // Text is also okay if you want a header.
+
+        // CHOICE adds a button to the list. The first argument is the button text, 
+        // and the remaining arguments are the list commands to execute when the user chooses this option.
+        CHOICE("Choice A",
+            text
+            `You picked choice A!`,
+            `This is another block of commands that will be executed if the user picks this choice.`,
+            `Once the end of the list of commands is reached, 
+            the player returns to the previous context and continues executing commands from there.`,
+        ),
+
+        // You can put text between choices too.
+        "<b>HTML is also supported!</b>",
+
+        CHOICE("Choice B",
+            text
+            `You picked choice B!`,
+            `(see above for details)`,
+        ),
+
+        "Footer text",
+    ),
+
+    // running commands based on a condition ...
+    IF(([]) === true,
+        haruka
+        `expression is true!`,
+        text
+        `now exiting the if statement`,
+    ),
+    // ... or if the condition fails ...
+    ELSE(
+        haruka
+        `expression is false!`,
+        text
+        `now exiting the else statement`,
+    ),
+
+    // Execute a function at runtime.
+    $(function () {
+        console.log(`This function is executed when the command is reached.`);
     }),
-    
-    $(() => {
-        haruka.reputation.you -= 40;
-    }),
 
-    haruka
-    `Uh... I... Um...`,
+    // Evaluate a string as javascript.
+    $(`
+        console.log("Hello, eval! This is okay because we are already running user code. It is up to the user to avoid executing malicious code here."); 
+    `),
 
-    haruka
-    `I know, but...`,
+    $(`back-of-classroom-day`)?.animate?.(fadeIn, { wait: true }), // You can also use the $ command to get elements by their unique id.
+);
 
-    you
-    `They're not even cute, and they weren't my size so I threw them out.`,
-
-    haruka
-    `You threw them out?!`,
-
-    text
-    `Haruka's eyes widen in disbelief. She begins to sob.`,
-
-    you
-    `Not this bullshiiit again...`,
-
-    haruka
-    `How could you... How could you do something like that...?`,
-)
-
-// Testing to see what value SCENE(...) returns
-console.log(testScene);
-
-// running the script
-/** @todo make this asynchronous so a scene can return something when they're done */
-play(testScene);
+// signaling the player to run the scene
+PLAY(testScene);

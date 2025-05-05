@@ -1,11 +1,22 @@
+
 /**
  * Wrapper for Web Animations API.
  */
 export default class VNAnimation {
+    options = {
+        duration: 1000,
+        easing: `linear`,
+        fill: `forwards`,
+        delay: 0,
+        iterations: 1,
+        direction: `normal`,
+        composite: `replace`,
+        wait: false,
+    }
     /**
      * Create a new reusable animation. It's just a wrapper for the Web Animations API.
      * @param {Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions} keyframes Keyframes for the animation.
-     * @param {EffectTiming} options Easing, duration, delay, etc.
+     * @param {EffectTiming & { wait: boolean }} options Easing, duration, delay, etc.
      * @param {Function | undefined} [onFinish] Optional callback to run when the animation finishes.
      */
     constructor(keyframes, options, onFinish = null) {
@@ -14,6 +25,12 @@ export default class VNAnimation {
         this.onFinishPersistent = onFinish || null;
     }
 
+    /**
+     * Override the animation options. This is useful for reusing the same animation with different options.
+     * Only overrides specified keys specified in the object.
+     * @param {EffectTiming & { wait: boolean }} options New options for the animation.
+     * @todo define options type 
+     */
     overrideOptions(options) {
         if (typeof options !== "object") {
             console.error(
@@ -25,6 +42,12 @@ export default class VNAnimation {
         this.options = { ...this.options, ...options };
     }
 
+    /**
+     * Animate the target element and return a Promise.
+     * @param {Element | import("../components/vn-actor.js").default} target 
+     * @param {Function} onFinish Optional callback to run when the animation finishes. 
+     * @returns 
+     */
     async animate(target, onFinish = null) {
         if (!(target instanceof Element) && typeof target !== "string") {
             console.error(

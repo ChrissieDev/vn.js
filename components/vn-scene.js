@@ -6,8 +6,15 @@
  */
 import "./vn-actor.js";
 import VNTextboxElement from "./text-box.js";
+import VNPlayerElement from "./vn-player.js";
 
-/** Converts RGB color value to HSL. */
+/**
+ * Helper function to convert RGB values to HSL.
+ * @param {number} r - Red value (0-255).
+ * @param {number} g - Green value (0-255).
+ * @param {number} b - Blue value (0-255).
+ * @returns {{ h: number, s: number, l: number }} - HSL values (hue, saturation, lightness).
+ */
 function rgbToHsl(r, g, b) {
     r /= 255;
     g /= 255;
@@ -37,25 +44,84 @@ function rgbToHsl(r, g, b) {
     return { h: h * 360, s: s, l: l };
 }
 
+/**
+ * This is a web component that represents the main visual "stage" where the game is displayed.
+ * Scripts modify the scene by adding or removing elements to it, animating them, and changing their properties.
+ */
 export default class VNSceneElement extends HTMLElement {
+    
+    /**
+     * @type {import("./vn-scene.js").default}
+     */
     #sceneElement = null;
+
+    /**
+     * @type {HTMLDivElement}
+     */
     #actorsContainer = null;
+    
+    /**
+     * @type {HTMLDivElement}
+     */
     #imagesContainer = null;
+    
+    /**
+     * @type {HTMLDivElement}
+     */
     #textboxesContainer = null;
+    
+    /**
+     * @type {HTMLDivElement}
+     */
     #mediaContainer = null;
+
+    /**
+     * A MutationObserver used to catch elements being added or removed in the scene.
+     * @type {MutationObserver}
+     */
     #observer = null;
+    
+    /**
+     * A promise that resolves when the player is defined as a custom element to the browser.
+     * @type {Promise<CustomElementConstructor>}
+     */
     #playerPromise = null;
+
+    /**
+     * The image that decides the ambient lighting of the objects displayed in the default slot.
+     * @type {HTMLImageElement}
+     */
     #ambientSourceElement = null;
+
+    /**
+     * The current CSS `filter` variable applied to the ambient image.
+     * @type {string}
+     */
     #currentAmbientFilter = "none";
+
+    /**
+     * If we are currently analyzing the ambient image for its average color.
+     * @type {boolean}
+     * @todo not necessary. the analyzeImageForAmbientFilter() returns a promise anyway.
+     */
     #isAnalyzingAmbient = false;
+
+    get currentTextboxDefinition() {
+        return this.getAttribute("textbox");
+    }
 
     static get observedAttributes() {
         return ["textbox"];
     }
 
+    /**
+     * Create a new VNSceneElement instance.
+     */
     constructor() {
         super();
+        
         this.attachShadow({ mode: "open" });
+
         this.shadowRoot.innerHTML = `
             <style>
                  :host {
@@ -69,6 +135,7 @@ export default class VNSceneElement extends HTMLElement {
                     position: relative;
                     background-color: #000; 
                 }
+
                 .scene {
                     width:100%; height: 100%;
                     position: relative;
@@ -92,23 +159,15 @@ export default class VNSceneElement extends HTMLElement {
                 .media { z-index: 5; }
                 .actors {
                     z-index: 10;
-                    
-                    
-                    
-                    
-                    
                     filter: var(--vn-ambient-filter, none);
                     transition: filter 0.5s ease-in-out; 
                 }
+
                 .textboxes {
                     z-index: 1000; 
-                     
-                     
                 }
 
-                 
-                 
-                 ::slotted(img[slot="images"]) {
+                ::slotted(img[slot="images"]) {
                     position: absolute; top: 0; left: 0;
                     width: 100%; height: 100%;
                     object-fit: cover; 
@@ -116,21 +175,21 @@ export default class VNSceneElement extends HTMLElement {
                     user-select: none;
                  }
                   
-                 ::slotted(vn-actor) {
-                    pointer-events: auto; 
-                    
-                    bottom: 0; 
-                 }
-                 
-                 ::slotted(text-box[slot="textboxes"]) {
-                    pointer-events: auto; 
-                    
-                 }
-                 
-                 ::slotted(audio[slot="media"]), ::slotted(video[slot="media"]) {
-                    position: absolute;
-                    
-                 }
+                ::slotted(vn-actor) {
+                   pointer-events: auto; 
+                   
+                   bottom: 0; 
+                }
+                
+                ::slotted(text-box[slot="textboxes"]) {
+                   pointer-events: auto; 
+                   
+                }
+                
+                ::slotted(audio[slot="media"]), ::slotted(video[slot="media"]) {
+                   position: absolute;
+                   
+                }
             </style>
             <div class="scene" part="scene">
                 <div class="images" part="images-container"><slot name="images"></slot></div>
@@ -144,7 +203,7 @@ export default class VNSceneElement extends HTMLElement {
         this.#mediaContainer = this.shadowRoot.querySelector(".media");
         this.#actorsContainer = this.shadowRoot.querySelector(".actors");
         this.#textboxesContainer = this.shadowRoot.querySelector(".textboxes");
-        this.#playerPromise = customElements.whenDefined("visual-novel");
+        this.#playerPromise = customElements.whenDefined("vn-player");
     }
 
     /**
@@ -294,6 +353,9 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
+    /**
+     * Updates the ambient source image if it has changed.
+     */
     #updateAmbientSource() {
         let newAmbientSource = null;
         const imagesSlot = this.shadowRoot.querySelector('slot[name="images"]');
@@ -359,13 +421,22 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
+    /**
+     * Finds the average color of the image and generates a color filter based on its average color.
+     * This operation happens on the CPU, so it compresses the image to 50x50 pixels and reads the pixels using a canvas.
+     * @param {HTMLImageElement} imgElement - The image element to analyze.
+     * @returns {Promise<void>} - A promise that resolves when the analysis is complete.
+     * @throws {SecurityError} - If the image is cross-origin and lacks the appropriate CORS headers. This feature only works when the image is served from the same origin. 
+     * Images served from a different origin must have the `crossorigin` attribute set to "anonymous" and the server must send the appropriate CORS headers.
+     */
     async #analyzeImageForAmbientFilter(imgElement) {
         if (!imgElement || !imgElement.src || this.#isAnalyzingAmbient) return;
         this.#isAnalyzingAmbient = true;
 
         const img = new Image();
-        const imageOrigin = new URL(imgElement.src, window.location.href)
-            .origin;
+        const imageOrigin = new URL(imgElement.src, window.location.href).origin;
+
+        // check for cors issues and warn the user
         if (imageOrigin !== window.location.origin) {
             if (!imgElement.hasAttribute("crossorigin")) {
                 console.warn(
@@ -379,9 +450,10 @@ export default class VNSceneElement extends HTMLElement {
         } else if (imgElement.hasAttribute("crossorigin")) {
             img.crossOrigin = imgElement.getAttribute("crossorigin");
         }
-        img.src = imgElement.src;
 
+        img.src = imgElement.src;
         let generatedFilter = "none";
+        
         try {
             await img.decode();
             const canvas = document.createElement("canvas");
@@ -452,6 +524,9 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
+    /**
+     * Applies a pre-calculated filter based on an image's color. @see VNSceneElement.#analyzeImageForAmbientFilter
+     */
     #applyAmbientFilter() {
         if (this.#actorsContainer) {
             this.#actorsContainer.style.setProperty(
@@ -461,7 +536,10 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
-    /** Processes child elements, assigning slots and configuring UID-based instances. */
+    /**
+     * Processes child elements that reference a unique id that references some asset/definition
+     * defined in the visual novel's project. In the DOM, this is the player's <vn-assets> element, a direct child of <vn-project>.
+     */
     async #processAddedChildrenForUIDs(children) {
         await this.#playerPromise;
 
@@ -620,6 +698,9 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
+    /**
+     * Handles image HTML elements being added to the shadow DOM.
+     */
     #configureImageInstance(instance, definition) {
         instance.slot = "images";
         const defSrc = definition.getAttribute("src");
@@ -673,6 +754,9 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
+    /**
+     * Handles media HTML elements (audio/video) being added to the shadow DOM and sets their attributes.
+     */
     #configureMediaInstance(instance, definition) {
         instance.slot = "media";
         const defSrc = definition.getAttribute("src");
@@ -842,8 +926,9 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
-    /** Creates a new VNTextboxElement instance based on the scene's 'textbox' definition attribute. */
-    acquireTextbox() {
+    cloneCurrentTextbox(content = "", options = {
+        attributes: {},
+    }) {
         let newTextbox = null;
         const definitionUid = this.getAttribute("textbox");
         const player = this.player;
@@ -852,12 +937,25 @@ export default class VNSceneElement extends HTMLElement {
             const definition = player.getAssetDefinition(definitionUid);
             if (definition && definition instanceof VNTextboxElement) {
                 newTextbox = definition.cloneNode(true);
+                
+                for (const [key, value] of Object.entries(options.attributes)) {
+                    if (value === null) {
+                        newTextbox.removeAttribute(key);
+                    } else {
+                        newTextbox.setAttribute(key, value);
+                    }
+                }
+
+                // don't allow the user to override this
                 newTextbox.setAttribute("ref", definitionUid);
+                newTextbox.textContent = content;
             } else {
                 console.error(
                     `Scene: Textbox definition "${definitionUid}" not found or not a <text-box>. Falling back.`,
                     definition
                 );
+
+                return null;
             }
         }
 
@@ -866,8 +964,16 @@ export default class VNSceneElement extends HTMLElement {
             newTextbox = document.createElement("text-box");
         }
 
-        this.addElement(newTextbox);
+        return newTextbox;
+    }
 
+    /** 
+     * Creates a new VNTextboxElement instance based on the scene's 'textbox' definition attribute.
+     * @returns {VNTextboxElement | null} The new textbox instance.
+     */
+    acquireTextbox() {
+        const newTextbox = this.cloneCurrentTextbox();
+        this.addElement(newTextbox);
         return newTextbox;
     }
 
@@ -930,7 +1036,7 @@ export default class VNSceneElement extends HTMLElement {
 
     /** @type {VNPlayerElement | null} */
     get player() {
-        return this.closest("visual-novel");
+        return this.closest("vn-player");
     }
     /** @type {VNProjectElement | null} */
     get project() {

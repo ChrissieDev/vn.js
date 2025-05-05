@@ -1,6 +1,6 @@
 /**
  * @module components
- * @fileoverview Exports all the components used in the <visual-novel> web component.
+ * @fileoverview Exports all the components used in the <vn-player> web component.
  * Each file also registers the component to the browser's custom element registry.
  */
  
@@ -13,7 +13,7 @@ import VNSceneElement from "./vn-scene.js";
 import VNTextBoxElement from "./text-box.js";
 import VNScriptElement from "./vn-script.js";
 import VNStyleElement from "./vn-style.js";
-import VNPlayerElement from "./visual-novel.js";
+import VNPlayerElement from "./vn-player.js";
 
 export default {
     VNPlayerElement,

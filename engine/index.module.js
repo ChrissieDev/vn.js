@@ -1,6 +1,6 @@
 /**
  * @module engine
- * @summary The VNPlayerElement engine module. This module contains the VNCommand classes utilized by the <visual-novel> runtime.
+ * @summary The VNPlayerElement engine module. This module contains the VNCommand classes utilized by the <vn-player> runtime.
  */
 import VNAnimation from "./VNAnimation.js";
 import VNCommand from "./VNCommand.js";

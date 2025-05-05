@@ -6,8 +6,9 @@
  * Converts triple hyphens (---) to em dashes (—) and double hyphens (--) to en dashes (–).
  * Can be defined in <vn-assets> and instantiated in <vn-scene>.
  */
-
 export default class VNTextboxElement extends HTMLElement {
+    
+    // General properties
     #isScrolling = false;
     #isComplete = false;
     #canProceed = false;
@@ -16,43 +17,73 @@ export default class VNTextboxElement extends HTMLElement {
     #startDelayTimeoutId = null;
     #isSkipping = false;
 
+    // Variables related to parsing nested HTML elements while maintaining the scrolling effect
     #processingStack = [];
     #currentTextNode = null;
     #currentCharIndex = 0;
     #currentTargetShadowTextNode = null;
     #currentTextNodeProcessedContent = null; // NEW: Store processed text for scrolling
 
+    /**
+     * Outer container for the text content.
+     * @type {HTMLElement}
+     */
     #contentElement = null;
+
+    /**
+     * The container holding the title text.
+     * @type {HTMLElement}
+     */
     #titleElement = null;
+
+    /**
+     * The animated '▶' (or styled otherwise) indicator element.
+     * @type {HTMLElement}
+     */
     #indicatorElement = null;
+    
+    /**
+     * Container for the text display inside the content container. Scrollable if needed, and supports nested HTML.
+     * @type {HTMLElement}
+     */
     #textDisplayElement = null;
+    
     #boundHandleInteraction = this.#handleInteraction.bind(this);
     #boundHandleKeydown = this.#handleKeydown.bind(this);
 
-    #scrollMs = 50;
+    /**
+     * The interval at which text is scrolled inside #textDisplayElement.
+     */
+    #scrollMs = 25;
     #startDelayMs = 0;
     #endDelayMs = 100;
 
+    /**
+     * Dictionary of characters that have a different scrolling speed when displayed.
+     * @todo make these customizable
+     */
     #speed = {
-        " ": 0,
-        ".": 300,
-        "?": 500,
-        "!": 500,
+        " ": 50,
+        ".": 150,
+        "?": 125,
+        "!": 125,
         "~": 200,
         ",": 100,
-        ";": 250,
-        ":": 250,
-        "—": 300, // Em dash
-        "–": 200, // En dash
+        ";": 125,
+        ":": 125,
+        "—": 150, // Em dash (parsed from `---`)
+        "–": 100, // En dash (parsed from `--`)
         "-": 50,  // Regular hyphen (keep original speed if desired)
     };
 
+    // Variables related to differentiating between a definition inside <vn-assets> and an instance inside <vn-scene>
     #isDefinitionParsed = false;
     #isInstanceInitialized = false;
 
     static observedAttributes = [
-        "uid",
-
+        "uid", // reference or definition id
+        
+        // directly sets the inline style attribute of the element. must be valid css values for each attribute's css rule equivalent.
         "top",
         "left",
         "bottom",
@@ -62,6 +93,7 @@ export default class VNTextboxElement extends HTMLElement {
         "color",
         "background",
 
+        // behavior related attributes
         "ms",
         "start-delay",
         "end-delay",
@@ -74,7 +106,6 @@ export default class VNTextboxElement extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
-        // ... (rest of constructor CSS and element selection is unchanged) ...
         this.shadowRoot.innerHTML = `
         <style>
 
@@ -134,6 +165,18 @@ export default class VNTextboxElement extends HTMLElement {
                 font-weight: 400;
             }
 
+            /**
+             * NEW: Repurposing <text-box> for VNCommandChoice to show a box with buttons
+             */
+            .choices {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .choice-item {
+                padding: 0.5em 1em;
+            }
+
             .content::-webkit-scrollbar {
                 display: none;
             }
@@ -151,6 +194,7 @@ export default class VNTextboxElement extends HTMLElement {
             .text-display {
 
             }
+
             .text-display wait { display: none; }
             .text-display b, .text-display strong { font-weight: bold; }
             .text-display i, .text-display em { font-style: italic; }
@@ -174,6 +218,8 @@ export default class VNTextboxElement extends HTMLElement {
             .indicator:not(.visible) {
                 display: none;
             }
+
+            
         </style>
         <div class="title" part="title"><slot name="title"></slot></div>
         <div class="content" part="content">
@@ -182,6 +228,7 @@ export default class VNTextboxElement extends HTMLElement {
             <div class="source-content-wrapper">
                 <slot></slot> <!-- Default slot IS NOW HIDDEN RELIABLY -->
             </div>
+            <div class="choices" part="choices"><slot name="choices"></slot></div>
             <span class="indicator" part="indicator">▶</span>
         </div>
     `;
@@ -204,7 +251,6 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     connectedCallback() {
-        // ... (unchanged) ...
         const isDefinition = this.closest("vn-assets") !== null;
         const id = this.getAttribute("uid") || "anonymous";
 
@@ -221,9 +267,12 @@ export default class VNTextboxElement extends HTMLElement {
 
             this.#updateInternalMsValues();
 
-            this.addEventListener("click", this.#boundHandleInteraction);
+            // attach event listeners to continue if this isn't a choice dialog
+            if (this.getAttribute("choices") === null) {
+                this.addEventListener("click", this.#boundHandleInteraction);            
+                window.addEventListener("keydown", this.#boundHandleKeydown);
 
-            window.addEventListener("keydown", this.#boundHandleKeydown);
+            }
 
             requestAnimationFrame(() => {
                 this.#startDisplay();
@@ -232,7 +281,6 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     disconnectedCallback() {
-        // ... (unchanged) ...
         const id = this.getAttribute("uid") || "anonymous";
         this.removeEventListener("click", this.#boundHandleInteraction);
         window.removeEventListener("keydown", this.#boundHandleKeydown);
@@ -242,7 +290,6 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #upgradeProperty(prop) {
-        // ... (unchanged) ...
         if (this.hasOwnProperty(prop)) {
             let value = this[prop];
             delete this[prop];
@@ -251,20 +298,18 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #parseDefinition() {
-        // ... (unchanged) ...
         const id = this.getAttribute("uid") || "anonymous_def";
         if (this.#isDefinitionParsed) return;
         this.#isDefinitionParsed = true;
     }
 
     #initializeInstance() {
-        // ... (unchanged) ...
         const id = this.getAttribute("uid") || "anonymous_inst";
         if (this.#isInstanceInitialized) return;
 
         let definition = null;
         const definitionUid = this.getAttribute("ref");
-        const player = this.closest("visual-novel");
+        const player = this.closest("vn-player");
 
         if (definitionUid && player) {
             definition = player.getAssetDefinition(definitionUid);
@@ -323,14 +368,14 @@ export default class VNTextboxElement extends HTMLElement {
 
     /** Ensures the definition is parsed if this is a definition element. */
     ensureParsed() {
-        // ... (unchanged) ...
         if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
             this.#parseDefinition();
         }
     }
+
     /** Checks if this is a parsed definition element. */
     isParsed() {
-        // ... (unchanged) ...
+        
         return this.closest("vn-assets") !== null && this.#isDefinitionParsed;
     }
 
@@ -344,7 +389,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #scrollToBottom() {
-        // ... (unchanged) ...
+        
         requestAnimationFrame(() => {
             if (this.#contentElement) {
                 const isNearBottom =
@@ -550,7 +595,7 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #finishScrolling() {
-        // ... (unchanged) ...
+        
         this.#isScrolling = false;
         this.#isComplete = true;
         this.#isSkipping = false;
@@ -616,9 +661,19 @@ export default class VNTextboxElement extends HTMLElement {
         this.#showIndicator(wasSkipped); // Show the proceed indicator after appropriate delay
     }
 
+    getChoicesContainer() {
+        return this.shadowRoot.querySelector(".choices") || null; // Return the choices container or null if not found
+    }
+
 
     #showIndicator(wasSkipped = false) {
-        // ... (unchanged) ...
+        if (this.getAttribute("choices") !== null) {    
+            this.#canProceed = false; // Don't treat this like dialogue
+            this.#isComplete = true;
+            this.#indicatorElement.classList.remove("visible");
+            return; // Don't show indicator if this is a choice dialog
+        }
+
         if (wasSkipped && this.unskippable) {
             // If skipped but unskippable, still show indicator but don't allow proceeding yet
             this.#isComplete = true; // Mark as text displayed
@@ -650,7 +705,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #skipScrolling() {
-        // ... (unchanged) ...
+        
         if (this.#isScrolling && !this.unskippable && !this.#isSkipping) {
             this.#isSkipping = true; // Set flag to prevent scrollLoop from continuing normally
             this.#clearTimeouts(); // Stop the current character timeout
@@ -683,7 +738,7 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #handleInteraction(event) {
-        // ... (unchanged) ...
+        
         if (this.closest("vn-assets")) return; // Ignore interactions on definition elements
 
         if (this.#isScrolling && !this.#isSkipping) {
@@ -705,7 +760,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #handleKeydown(event) {
-        // ... (unchanged) ...
+        
         if (this.closest("vn-assets")) return; // Ignore keydown on definition elements
 
         // Allow Space or Enter to trigger the same interaction as a click
@@ -716,7 +771,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #parseTime(timeStr) {
-        // ... (unchanged) ...
+        
         if (timeStr === null || timeStr === undefined) return null;
         if (typeof timeStr === 'number') return Math.max(0, timeStr);
 
@@ -745,7 +800,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #syncAttribute(name, value) {
-        // ... (unchanged) ...
+        
         if (this.closest('vn-assets') && !this.#isDefinitionParsed && name !== 'uid') return; // Don't sync non-UID attributes on unparsed definitions
 
         const useValue = value !== null ? value : 'auto'; // Default for position/size if value is null
@@ -814,7 +869,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #syncAllAttributes() {
-        // ... (unchanged) ...
+        
         VNTextboxElement.observedAttributes.forEach(attrName => {
             if (this.hasAttribute(attrName)) {
                 this.#syncAttribute(attrName, this.getAttribute(attrName));
@@ -829,7 +884,7 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #updateTitleVisibility() {
-        // ... (unchanged) ...
+        
         if (!this.#titleElement) return;
         // Use requestAnimationFrame to ensure checks happen after potential DOM updates
         requestAnimationFrame(() => {
@@ -870,7 +925,7 @@ export default class VNTextboxElement extends HTMLElement {
         }
     }
 
-    // --- Getters and Setters (unchanged) ---
+    // Getters and setters. State is represented via attributes
     get top() { return this.getAttribute("top"); }
     set top(value) { this.setAttribute("top", value); }
     get left() { return this.getAttribute("left"); }
@@ -899,12 +954,13 @@ export default class VNTextboxElement extends HTMLElement {
     set startDelay(value) { this.setAttribute("start-delay", String(value)); }
     get endDelay() { return this.getAttribute("end-delay"); }
     set endDelay(value) { this.setAttribute("end-delay", String(value)); }
-    get player() { return this.closest("visual-novel"); }
+    get player() { return this.closest("vn-player"); }
     set player(value) { throw new Error("`player` (VNPlayerElement) is read-only."); }
     get scene() { return this.closest("vn-scene"); }
     set scene(value) { throw new Error("`scene` (VNSceneElement) is read-only."); }
 
-    // --- Public Methods (unchanged) ---
+    // Classic JS-style getters and setters
+
     getPlayer() { return this.player; }
     getScene() { return this.scene; }
     getTop() { return this.top; }

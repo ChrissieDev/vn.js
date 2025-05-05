@@ -1,45 +1,115 @@
 import VNCommand from "../VNCommand.js";
+import VNCommandChoice from "./VNCommandChoice.js";
+import html from "../../utils/html.js";
 
 export default class VNCommandPick extends VNCommand {
-    constructor(queue, choices = []) {
+    constructor(queue, items = []) {
         super(queue);
-        if (!Array.isArray(choices) || choices.some(c => !(c instanceof VNCommandChoice))) {
-            throw new Error("PICK requires an array of VNCommandChoice objects.");
+        if (!Array.isArray(items)) {
+            throw new Error("PICK requires an array.");
         }
-        this.choices = choices;
+        this.items = items;
     }
 
+    /**
+     * Check if the object adheres to the VNCommandChoice JSON structure.
+     */
+    validateChoiceAPIObject(obj) {
+        
+        if (typeof obj !== "object") {
+            return false;    
+        }
+
+        if (obj.type) {
+            if (typeof obj.type !== "string") {
+                return false;
+            }
+
+            if (obj.type !== "choice") {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        if (obj.text) {
+            if (typeof obj.text !== "string") {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        if (obj.commands) {
+            if (Array.isArray(obj.commands)) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        return true;
+    }
     execute() {
         const scene = this.scene;
+        
         if (!scene) {
             console.error("VNCommandPick doesn't have a scene available to execute the command.");
             return true; // Skip command if no scene is available
         }
-        if (this.choices.length === 0) {
+
+        if (this.items.length === 0) {
             console.warn("VNCommandPick has no choices available to pick from.");
             return true; // Skip command if no choices are available
         }
+
         // the thing to render choices in the text boxes / ui
-        const choiceContainer = scene.createChoiceContainer();
-        this.choices.forEach(choice => {
-            const button = document.createElement("button");
-            button.textContent = choice.text;
-            button.addEventListener("click", () => {
-                choiceContainer.remove();
-                this.queue.player.setCurrentQueue(choice.commandsQueue);
-                this.queue.player.continueExecution();
-            });
-            choiceContainer.appendChild(button);
+        const textBox = this.scene.cloneCurrentTextbox("", {
+            attributes: {
+                choices: "",
+            }
         });
 
+        console.log(textBox);
+
+
+        for (const choice of this.items) {
+            let element = null;
+            if (choice instanceof VNCommandChoice) {
+                console.log(`\x1b[33mCHOICE: ${choice.text}\x1b[0m`);
+                element = html`
+                    <button class="choice-button" data-command="${choice.command}">
+                        ${choice.text}
+                    </button>
+                `;
+                element.addEventListener("click", () => {
+                    this.queue.push(choice.execute.bind(choice));
+                });
+            } else if (typeof choice === "string") {
+                element = html`<span class="choice-text">${choice}</span>`;
+            } else if (choice instanceof HTMLElement) {
+                element = choice;
+            } else if (this.validateChoiceAPIObject(choice)) {
+
+            } else {
+                console.error("VNCommandPick: Invalid choice type. Expected VNCommandChoice, string, or HTMLElement.");
+                continue; // Skip invalid choice
+            }
+
+            element.classList.add("choice-item");
+            element.setAttribute("slot", "choices");
+            textBox.appendChild(element);
+            textBox.classList.add("choice-container");
+        };
+
         try {
-            scene.appendChild(choiceContainer);
+            scene.appendChild(textBox);
         } catch (error) {
             console.error("Failed to append choice container to the scene:", error);
             return true; // Skip command if appending fails
         }
 
-        // Pause the execution unt il a choice is made
+        // Pause the execution until a choice is made
         return false;
     }
 }

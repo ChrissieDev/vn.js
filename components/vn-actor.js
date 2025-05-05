@@ -110,7 +110,7 @@ export default class VNActorElement extends HTMLElement {
         `;
 
         this.#playerPromise = Promise.all([
-            customElements.whenDefined("visual-novel"),
+            customElements.whenDefined("vn-player"),
             customElements.whenDefined("body-part"),
         ]);
     }
@@ -393,7 +393,7 @@ export default class VNActorElement extends HTMLElement {
         }
         const instanceId = `INST ${uid}`;
 
-        const player = this.closest("visual-novel");
+        const player = this.closest("vn-player");
         if (!player) throw new Error(`[${instanceId}] Player not found.`);
         const definition = player.getAssetDefinition(uid);
         if (!definition || !(definition instanceof VNActorElement)) {
@@ -477,7 +477,7 @@ export default class VNActorElement extends HTMLElement {
             return false;
         }
 
-        const player = this.closest("visual-novel");
+        const player = this.closest("vn-player");
         const definition = player?.getAssetDefinition(this.getAttribute("uid"));
         const bodyPartDefElement = definition
             ?.getDefinitionBodyPartDefs()
