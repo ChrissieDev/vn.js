@@ -11,6 +11,45 @@ export default class VNCommandPick extends VNCommand {
         this.items = items;
     }
 
+    /**
+     * Check if the object adheres to the VNCommandChoice JSON structure.
+     */
+    validateChoiceAPIObject(obj) {
+        
+        if (typeof obj !== "object") {
+            return false;    
+        }
+
+        if (obj.type) {
+            if (typeof obj.type !== "string") {
+                return false;
+            }
+
+            if (obj.type !== "choice") {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        if (obj.text) {
+            if (typeof obj.text !== "string") {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        if (obj.commands) {
+            if (Array.isArray(obj.commands)) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+
+        return true;
+    }
     execute() {
         const scene = this.scene;
         
@@ -25,15 +64,15 @@ export default class VNCommandPick extends VNCommand {
         }
 
         // the thing to render choices in the text boxes / ui
-        const choiceContainer = html`
-            <text-box
-                uid="default"
-            ></text-box>
-        `;
+        const textBox = document.createElement("text-box");
+
+        console.log(textBox);
+
 
         for (const choice of this.items) {
             let element = null;
             if (choice instanceof VNCommandChoice) {
+                console.log(`\x1b[33mCHOICE: ${choice.text}\x1b[0m`);
                 element = html`
                     <button class="choice-button" data-command="${choice.command}">
                         ${choice.text}
@@ -46,17 +85,21 @@ export default class VNCommandPick extends VNCommand {
                 element = html`<span class="choice-text">${choice}</span>`;
             } else if (choice instanceof HTMLElement) {
                 element = choice;
-            } else {
-                console.warn("Invalid choice type:", choice);
-                continue; // Skip invalid choices
+            } else if (
+                typeof choice === "object" && 
+                choice.type
+            ) {
+
             }
 
             element.classList.add("choice-item");
-            choiceContainer.appendChild(element);
+            element.setAttribute("slot", "choices");
+            textBox.appendChild(element);
+            textBox.classList.add("choice-container");
         };
 
         try {
-            scene.appendChild(choiceContainer);
+            scene.appendChild(textBox);
         } catch (error) {
             console.error("Failed to append choice container to the scene:", error);
             return true; // Skip command if appending fails

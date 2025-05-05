@@ -106,7 +106,6 @@ export default class VNTextboxElement extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
-        // ... (rest of constructor CSS and element selection is unchanged) ...
         this.shadowRoot.innerHTML = `
         <style>
 
@@ -166,6 +165,18 @@ export default class VNTextboxElement extends HTMLElement {
                 font-weight: 400;
             }
 
+            /**
+             * NEW: Repurposing <text-box> for VNCommandChoice to show a box with buttons
+             */
+            .choices {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .choice-item {
+                padding: 0.5em 1em;
+            }
+
             .content::-webkit-scrollbar {
                 display: none;
             }
@@ -183,6 +194,7 @@ export default class VNTextboxElement extends HTMLElement {
             .text-display {
 
             }
+
             .text-display wait { display: none; }
             .text-display b, .text-display strong { font-weight: bold; }
             .text-display i, .text-display em { font-style: italic; }
@@ -214,6 +226,7 @@ export default class VNTextboxElement extends HTMLElement {
             <div class="source-content-wrapper">
                 <slot></slot> <!-- Default slot IS NOW HIDDEN RELIABLY -->
             </div>
+            <div class="choices" part="choices"><slot name="choices"></slot></div>
             <span class="indicator" part="indicator">▶</span>
         </div>
     `;
@@ -236,7 +249,6 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     connectedCallback() {
-        // ... (unchanged) ...
         const isDefinition = this.closest("vn-assets") !== null;
         const id = this.getAttribute("uid") || "anonymous";
 
@@ -264,7 +276,6 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     disconnectedCallback() {
-        // ... (unchanged) ...
         const id = this.getAttribute("uid") || "anonymous";
         this.removeEventListener("click", this.#boundHandleInteraction);
         window.removeEventListener("keydown", this.#boundHandleKeydown);
@@ -274,7 +285,6 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #upgradeProperty(prop) {
-        // ... (unchanged) ...
         if (this.hasOwnProperty(prop)) {
             let value = this[prop];
             delete this[prop];
@@ -283,14 +293,12 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #parseDefinition() {
-        // ... (unchanged) ...
         const id = this.getAttribute("uid") || "anonymous_def";
         if (this.#isDefinitionParsed) return;
         this.#isDefinitionParsed = true;
     }
 
     #initializeInstance() {
-        // ... (unchanged) ...
         const id = this.getAttribute("uid") || "anonymous_inst";
         if (this.#isInstanceInitialized) return;
 
@@ -355,14 +363,14 @@ export default class VNTextboxElement extends HTMLElement {
 
     /** Ensures the definition is parsed if this is a definition element. */
     ensureParsed() {
-        // ... (unchanged) ...
         if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
             this.#parseDefinition();
         }
     }
+
     /** Checks if this is a parsed definition element. */
     isParsed() {
-        // ... (unchanged) ...
+        
         return this.closest("vn-assets") !== null && this.#isDefinitionParsed;
     }
 
@@ -376,7 +384,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #scrollToBottom() {
-        // ... (unchanged) ...
+        
         requestAnimationFrame(() => {
             if (this.#contentElement) {
                 const isNearBottom =
@@ -582,7 +590,7 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #finishScrolling() {
-        // ... (unchanged) ...
+        
         this.#isScrolling = false;
         this.#isComplete = true;
         this.#isSkipping = false;
@@ -648,9 +656,13 @@ export default class VNTextboxElement extends HTMLElement {
         this.#showIndicator(wasSkipped); // Show the proceed indicator after appropriate delay
     }
 
+    getChoicesContainer() {
+        return this.shadowRoot.querySelector(".choices") || null; // Return the choices container or null if not found
+    }
+
 
     #showIndicator(wasSkipped = false) {
-        // ... (unchanged) ...
+        
         if (wasSkipped && this.unskippable) {
             // If skipped but unskippable, still show indicator but don't allow proceeding yet
             this.#isComplete = true; // Mark as text displayed
@@ -682,7 +694,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #skipScrolling() {
-        // ... (unchanged) ...
+        
         if (this.#isScrolling && !this.unskippable && !this.#isSkipping) {
             this.#isSkipping = true; // Set flag to prevent scrollLoop from continuing normally
             this.#clearTimeouts(); // Stop the current character timeout
@@ -715,7 +727,7 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #handleInteraction(event) {
-        // ... (unchanged) ...
+        
         if (this.closest("vn-assets")) return; // Ignore interactions on definition elements
 
         if (this.#isScrolling && !this.#isSkipping) {
@@ -737,7 +749,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #handleKeydown(event) {
-        // ... (unchanged) ...
+        
         if (this.closest("vn-assets")) return; // Ignore keydown on definition elements
 
         // Allow Space or Enter to trigger the same interaction as a click
@@ -748,7 +760,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #parseTime(timeStr) {
-        // ... (unchanged) ...
+        
         if (timeStr === null || timeStr === undefined) return null;
         if (typeof timeStr === 'number') return Math.max(0, timeStr);
 
@@ -777,7 +789,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #syncAttribute(name, value) {
-        // ... (unchanged) ...
+        
         if (this.closest('vn-assets') && !this.#isDefinitionParsed && name !== 'uid') return; // Don't sync non-UID attributes on unparsed definitions
 
         const useValue = value !== null ? value : 'auto'; // Default for position/size if value is null
@@ -846,7 +858,7 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #syncAllAttributes() {
-        // ... (unchanged) ...
+        
         VNTextboxElement.observedAttributes.forEach(attrName => {
             if (this.hasAttribute(attrName)) {
                 this.#syncAttribute(attrName, this.getAttribute(attrName));
@@ -861,7 +873,7 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #updateTitleVisibility() {
-        // ... (unchanged) ...
+        
         if (!this.#titleElement) return;
         // Use requestAnimationFrame to ensure checks happen after potential DOM updates
         requestAnimationFrame(() => {
@@ -980,7 +992,7 @@ export default class VNTextboxElement extends HTMLElement {
         this.remove();
         this.dispatchEvent(new CustomEvent("destroy", { bubbles: false }));
     }
-    
+
     /** Manually triggers the proceed action (if possible). */
     proceed() {
         if (!this.closest("vn-assets")) {

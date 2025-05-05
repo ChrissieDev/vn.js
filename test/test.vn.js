@@ -34,15 +34,20 @@ const testScene = SCENE(
     }),
 
     ADD.IMAGE(`back-of-classroom-day`),
-    // SELECT(`back-of-classroom-day`).animate(fadeIn, { wait: true }),
 
     haruka
-    `Hey, ${user}, do you have a moment?`,
-
-    haruka.animate(fadeIn, {
-        wait: true,
-    }),
-    
+    `<ruby>
+        漢
+        <rp>
+            (</rp><rt>kan</rt><rp>)
+        </rp>
+        字
+        <rp>
+            (</rp><rt>ji</rt><rp>)
+        </rp>
+    </ruby>
+    `,
+        
     ADD.AUDIO(`everyday`, {
         volume: 0.05,
     }),
