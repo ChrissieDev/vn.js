@@ -926,7 +926,9 @@ export default class VNSceneElement extends HTMLElement {
         }
     }
 
-    cloneCurrentTextbox(content = "") {
+    cloneCurrentTextbox(content = "", options = {
+        attributes: {},
+    }) {
         let newTextbox = null;
         const definitionUid = this.getAttribute("textbox");
         const player = this.player;
@@ -935,6 +937,16 @@ export default class VNSceneElement extends HTMLElement {
             const definition = player.getAssetDefinition(definitionUid);
             if (definition && definition instanceof VNTextboxElement) {
                 newTextbox = definition.cloneNode(true);
+                
+                for (const [key, value] of Object.entries(options.attributes)) {
+                    if (value === null) {
+                        newTextbox.removeAttribute(key);
+                    } else {
+                        newTextbox.setAttribute(key, value);
+                    }
+                }
+
+                // don't allow the user to override this
                 newTextbox.setAttribute("ref", definitionUid);
                 newTextbox.textContent = content;
             } else {

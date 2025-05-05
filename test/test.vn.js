@@ -10,7 +10,7 @@ const fadeIn = ANIMATION([
     { opacity: 1 },
 ],
     {
-        duration: 4000,
+        duration: 2000,
         easing: `linear`,
         fill: `forwards`,
     }
@@ -41,13 +41,6 @@ const testScene = SCENE(
     // Even though actor variables are functions, they can have properties like any javascript object.
     // actor.animate() is a function that takes a VNAnimation and applies it to the actor's element.
     haruka.animate(fadeIn, { wait: true }),
-
-    // Wait for half a second before executing the next command.
-    WAIT("0.5s"), 
-    WAIT(500), // This is also valid.
-
-    // the text command displays a textbox with no speaker/title.
-    text`This is a dialogue box with no speaker.`,
 
     // This adds a speaker-less textbox to the scene with a list of choices.
     PICK(

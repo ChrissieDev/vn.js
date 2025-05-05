@@ -267,9 +267,12 @@ export default class VNTextboxElement extends HTMLElement {
 
             this.#updateInternalMsValues();
 
-            this.addEventListener("click", this.#boundHandleInteraction);
+            // attach event listeners to continue if this isn't a choice dialog
+            if (this.getAttribute("choices") === null) {
+                this.addEventListener("click", this.#boundHandleInteraction);            
+                window.addEventListener("keydown", this.#boundHandleKeydown);
 
-            window.addEventListener("keydown", this.#boundHandleKeydown);
+            }
 
             requestAnimationFrame(() => {
                 this.#startDisplay();
@@ -664,7 +667,13 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #showIndicator(wasSkipped = false) {
-        
+        if (this.getAttribute("choices") !== null) {    
+            this.#canProceed = false; // Don't treat this like dialogue
+            this.#isComplete = true;
+            this.#indicatorElement.classList.remove("visible");
+            return; // Don't show indicator if this is a choice dialog
+        }
+
         if (wasSkipped && this.unskippable) {
             // If skipped but unskippable, still show indicator but don't allow proceeding yet
             this.#isComplete = true; // Mark as text displayed

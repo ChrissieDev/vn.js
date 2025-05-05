@@ -22,5 +22,7 @@ export default class VNCommandText extends VNCommand {
         const textBox = this.queue.scene.cloneTextbox(this.content);
 
         this.queue.scene.appendChild(textBox);
+
+        return false; // don't continue until the text box is closed
     }
 }

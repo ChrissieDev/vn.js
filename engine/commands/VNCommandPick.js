@@ -64,7 +64,11 @@ export default class VNCommandPick extends VNCommand {
         }
 
         // the thing to render choices in the text boxes / ui
-        const textBox = document.createElement("text-box");
+        const textBox = this.scene.cloneCurrentTextbox("", {
+            attributes: {
+                choices: "",
+            }
+        });
 
         console.log(textBox);
 
@@ -85,11 +89,11 @@ export default class VNCommandPick extends VNCommand {
                 element = html`<span class="choice-text">${choice}</span>`;
             } else if (choice instanceof HTMLElement) {
                 element = choice;
-            } else if (
-                typeof choice === "object" && 
-                choice.type
-            ) {
+            } else if (this.validateChoiceAPIObject(choice)) {
 
+            } else {
+                console.error("VNCommandPick: Invalid choice type. Expected VNCommandChoice, string, or HTMLElement.");
+                continue; // Skip invalid choice
             }
 
             element.classList.add("choice-item");
