@@ -71,8 +71,19 @@ export default class VNCommandPick extends VNCommand {
                         resolve(choice.execute());
                     });
                 } else if (typeof choice === "string") {
-                    console.log(`\x1b[33mCHOICE: String passed as choice: "${choice}", converted to HTML element.\x1b[0m`);
-                    element = html`<span class="choice-text">${choice}</span>`;
+                    console.log(`\x1b[33mCHOICE: String passed as choice: "${choice}", converting to HTML element...\x1b[0m`, choice);
+                    const domParser = new DOMParser();
+                    const parsedHTML = domParser.parseFromString(choice, "text/html");
+                    let parsedElement = parsedHTML.body.firstChild;
+                    
+                    console.log(parsedElement);
+
+                    if (!(parsedElement instanceof Element)) {
+                        // If the parsed element is not a text node, we need to create a span element to hold the text
+                        parsedElement = document.createElement("span");
+                        parsedElement.textContent = choice;
+                    }
+                    element = parsedElement;
                 } else if (choice instanceof HTMLElement) {
                     element = choice;
                 } else if (VNCommandPick.validateObject(choice)) {
@@ -82,7 +93,7 @@ export default class VNCommandPick extends VNCommand {
                     const newQueue = new VNCommandQueue({ player: this.player, parentQueue: queue }, ...commands);
                     const command = new VNCommandChoice(queue, text, newQueue);
 
-                    console.log(`\x1b[33mCHOICE: Object passed as choice: "${text}", converted to VNCommandChoice.\x1b[0m`);
+                    console.log(`\x1b[33mCHOICE: Object passed as choice: "${text}", converting to VNCommandChoice...\x1b[0m`);
                     
                     element = html`
                         <button class="choice-button" slot="choices" data-command="${command.command}">
