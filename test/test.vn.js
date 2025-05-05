@@ -32,7 +32,7 @@ const testScene = SCENE(
     ADD.AUDIO(`everyday`, {
         volume: 0.3,
     }),
-    
+
     // This adds a speaker-less textbox to the scene with a list of choices.
     PICK(
         "What do you want to say?", // Text is also okay if you want a header.
@@ -54,13 +54,30 @@ const testScene = SCENE(
             text
             `You picked choice B!`,
             `(see above for details)`,
+            PICK(
+                CHOICE("Choice B-1",
+                    text
+                    `You picked choice B-1!`,
+                ),
+                CHOICE("Choice B-2",
+                    text
+                    `You picked choice B-2!`,
+                ),
+                CHOICE("Choice B-3",
+                    text
+                    `You picked choice B-3!`,
+                ),
+
+            )
         ),
 
         "Footer text",
     ),
 
     // running commands based on a condition ...
-    IF(([]) === true,
+    IF(() => {
+        return true;
+    },
         haruka
         `expression is true!`,
         text
@@ -73,18 +90,8 @@ const testScene = SCENE(
         text
         `now exiting the else statement`,
     ),
-
-    // Execute a function at runtime.
-    $(function () {
-        console.log(`This function is executed when the command is reached.`);
-    }),
-
-    // Evaluate a string as javascript.
-    $(`
-        console.log("Hello, eval! This is okay because we are already running user code. It is up to the user to avoid executing malicious code here."); 
-    `),
-
-    $(`back-of-classroom-day`)?.animate?.(transition, { wait: true }), // You can also use the $ command to get elements by their unique id.
+    you
+    `'You' is an invisible actor that exists in every scene. It is used to represent the player.`,
 );
 
 // signaling the player to run the scene

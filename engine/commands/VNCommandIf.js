@@ -20,6 +20,7 @@ export class VNCommandIf extends VNCommand {
     execute() {
         console.log("Executing IF command.");
         let branchToExecute = null;
+
         try {
             if (this.conditionFunc()) {
                 branchToExecute = this.trueBranchQueue;
@@ -32,6 +33,7 @@ export class VNCommandIf extends VNCommand {
         }
 
         if (branchToExecute) {
+            
              branchToExecute.scene = this.scene;
              if (branchToExecute instanceof VNCommandQueue) {
                  branchToExecute.parentQueue = this.queue;
@@ -39,9 +41,7 @@ export class VNCommandIf extends VNCommand {
 
              this.player.setCurrentQueue(branchToExecute);
 
-             requestAnimationFrame(() => this.player.continueExecution());
-
-             return false;
+             return true;
         } else {
              return true;
         }
@@ -86,6 +86,7 @@ export class VNCommandElse extends VNCommand {
      /** ELSE commands are structural and should not be executed directly in the queue flow. */
      execute() {
          console.error("VNCommandElse should not be executed directly. It's handled by the preceding IF.");
+         debugger;
          return true;
      }
 }

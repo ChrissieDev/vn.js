@@ -327,6 +327,7 @@ export default class VNPlayerElement extends HTMLElement {
                 console.error("Error in execution loop:", error);
                 this.isPlaying = false;
                 continueImmediately = false;
+                break;
             }
             if (!this.#currentQueue) {
                 console.log(
