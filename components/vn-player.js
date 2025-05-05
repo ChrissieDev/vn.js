@@ -845,20 +845,7 @@ export default class VNPlayerElement extends HTMLElement {
             };
         },
     };
-
-    /**
-     * @todo Add the ability for users to create assets dynamically at runtime.
-     */
-    #runtime_CREATE = {
-        // IMAGE: (uid, options = {}) => { },
-        // AUDIO: (uid, options = {}) => { },
-        // ACTOR: (uid, options = {}) => { },
-        // STYLE: (uid, options = {}) => { },
-        // TEXTBOX: (uid, options = {}) => { },
-        // ANIMATION: (uid, options = {}) => { },
-        // VIDEO: (uid, options = {}) => { },
-    };
-
+    
     /**
      * @todo Add the ability to create event listeners. (low priority, only added here so i remember)
      */
