@@ -131,4 +131,4 @@ console.log(testScene);
 
 // running the script
 /** @todo make this asynchronous so a scene can return something when they're done */
-play(testScene);
+PLAY(testScene);
