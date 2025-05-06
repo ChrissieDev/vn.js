@@ -533,7 +533,7 @@ export default class VNPlayerElement extends HTMLElement {
 
                 // Does the actor function already exist in the runtime?
                 if (uid && !this.#runtime[uid]) {
-                    const actorFunction = this.#createActorFunction(
+                    const actorFunction = this.#createAssetFunction(
                         uid,
                         name,
                         actorDef
@@ -581,7 +581,7 @@ export default class VNPlayerElement extends HTMLElement {
      * @param {VNActorElement} actorDef
      * @returns
      */
-    #createActorFunction(uid, displayName, actorDef) {
+    #createAssetFunction(uid, displayName, actorDef) {
         console.log(
             `Creating runtime function for actor: ${uid} (Display: ${displayName})`
         );
@@ -749,7 +749,6 @@ export default class VNPlayerElement extends HTMLElement {
         try {
             const queue = new VNCommandQueue({ player: this }, ...commands);
             console.log("API: SCENE returning queue:", queue);
-            queue._isQueueFromSCENE = true;
             return queue;
         } catch (error) {
             console.error("API: SCENE Error creating VNCommandQueue:", error);
@@ -793,9 +792,6 @@ export default class VNPlayerElement extends HTMLElement {
         if (sceneQueue && typeof sceneQueue === "object") {
             console.log(
                 `API: play - Argument constructor name: ${sceneQueue.constructor?.name}`
-            );
-            console.log(
-                `API: play - Argument has _isQueueFromSCENE marker: ${!!sceneQueue._isQueueFromSCENE}`
             );
         }
         

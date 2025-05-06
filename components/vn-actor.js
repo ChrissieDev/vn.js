@@ -7,6 +7,7 @@
  * Scales relative to container via CSS (e.g., percentage height + aspect-ratio).
  */
 import "./vn-layer.js";
+import "./vn-layer.js";
 
 const DESIGN_HEIGHT = 1080;
 
@@ -27,7 +28,7 @@ export default class VNActorElement extends HTMLElement {
     #maxImageHeight = 0;
     #calculatedRelativeHeight = null;
 
-    static observedAttributes = ["uid", "name", "style"];
+    static observedAttributes = ["uid", "name", "style", "actor"];
 
     constructor() {
         super();
@@ -100,6 +101,7 @@ export default class VNActorElement extends HTMLElement {
 
                 
                 ::slotted(vn-layer) {
+                ::slotted(vn-layer) {
                     display: none !important;
                 }
             </style>
@@ -107,10 +109,12 @@ export default class VNActorElement extends HTMLElement {
                 <!-- Active images will be added here dynamically -->
             </div>
             <slot></slot> <!-- Slot ONLY for vn-layer definitions -->
+            <slot></slot> <!-- Slot ONLY for vn-layer definitions -->
         `;
 
         this.#playerPromise = Promise.all([
             customElements.whenDefined("vn-player"),
+            customElements.whenDefined("vn-layer"),
             customElements.whenDefined("vn-layer"),
         ]);
     }
@@ -628,6 +632,7 @@ export default class VNActorElement extends HTMLElement {
         return new Map(this.#activeState);
     }
 
+    /** Gets the map of <vn-layer> definition elements (relevant for definitions). */
     /** Gets the map of <vn-layer> definition elements (relevant for definitions). */
     getDefinitionBodyPartDefs() {
         if (this.closest("vn-project") && !this.#isDefinitionParsed) {

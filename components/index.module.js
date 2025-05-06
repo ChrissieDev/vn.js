@@ -20,7 +20,7 @@ export default {
     VNProjectElement,
     VNAssetsElement,
     VNActorElement,
-    VNBodyPartElement,
+    VNLayerElement,
     VNSceneElement,
     VNTextBoxElement,
     VNScriptElement,
