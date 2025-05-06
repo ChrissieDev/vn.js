@@ -23,7 +23,6 @@ export default class VNCommandQueue {
     player = null;
     #scene = null;
     parentQueue = null;
-    _isQueueFromSCENE = false;
 
     /**
      * Creates a new VNCommandQueue instance.

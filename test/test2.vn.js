@@ -7,8 +7,8 @@ const scene = SCENE(
         // initialize kacey actor
         kacey.rep = {
             you: 100,
-            takeno: 0,
-            akira: 0,
+            sato: 0,
+            akira: 20,
             takazawa: 0,
         }
     },
@@ -30,8 +30,9 @@ const scene = SCENE(
 
     PICK(
         `Kacey is looking at you.`,
+
         CHOICE(`You've got enough tardies!`,
-            text
+            text,
             `You laugh at Kacey's comment.`,
 
             you
@@ -44,12 +45,8 @@ const scene = SCENE(
             you
             `I knooow, right? It's so boring! We already know all this stuff!`,
 
-            function() {
-                kacey.rep.you += 20;
-            },
-
             kacey
-            `By the way, I spotted Takeno-sensei at an anonymous gay truck stop last night!`,
+            `By the way, I spotted Sato-sensei at an anonymous gay truck stop last night!`,
 
             you
             `No way! Are you serious?`,
@@ -74,7 +71,6 @@ const scene = SCENE(
             `Oh my god, you're so right!`,
         )
     )
-
 )
 
 PLAY(scene);

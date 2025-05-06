@@ -696,7 +696,6 @@ export default class VNPlayerElement extends HTMLElement {
         try {
             const queue = new VNCommandQueue({ player: this }, ...commands);
             console.log("API: SCENE returning queue:", queue);
-            queue._isQueueFromSCENE = true;
             return queue;
         } catch (error) {
             console.error("API: SCENE Error creating VNCommandQueue:", error);
@@ -740,9 +739,6 @@ export default class VNPlayerElement extends HTMLElement {
         if (sceneQueue && typeof sceneQueue === "object") {
             console.log(
                 `API: play - Argument constructor name: ${sceneQueue.constructor?.name}`
-            );
-            console.log(
-                `API: play - Argument has _isQueueFromSCENE marker: ${!!sceneQueue._isQueueFromSCENE}`
             );
         }
         
