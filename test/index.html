@@ -4,7 +4,7 @@
         <title>vn.js test</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta charset="UTF-8" />
-        
+
         <!-- Registers all vn components to the DOM. Must be imported first to display the <vn-player> on a page. -->
         <script src="../vn.js" type="module"></script>
 
@@ -19,7 +19,7 @@
                 overflow: hidden;
                 background-color: #222;
             }
-            
+
             body > .vn-container {
                 top: 0;
                 left: 0;
@@ -33,14 +33,13 @@
             }
             vn-actor {
                 transition: all 0.1s allow-discrete;
-                
             }
             vn-actor:not(.speaking) {
-                filter: grayscale(0.1) brightness(0.4);
+                filter: grayscale(0.1) brightness(0.8);
             }
 
             vn-actor.speaking {
-                transform: scale(1.75);
+                transform: scale(1.02) !important;
             }
 
             @keyframes fadein {
@@ -71,10 +70,17 @@
                     <meta itemprop="version" content="1.0" />
                     <meta itemprop="date" content="2025-04-29" />
                     <meta itemprop="license" content="MIT" />
-                    
+
                     <vn-assets>
-                        <img src="./images/backgrounds/_back_of_classroom_day.jpg" uid="back-of-classroom-day" />
-                        <audio uid="everyday" src="./audio/music/everyday.mp3" loop></audio>
+                        <img
+                            src="./images/backgrounds/_back_of_classroom_day.jpg"
+                            uid="back-of-classroom-day"
+                        />
+                        <audio
+                            uid="everyday"
+                            src="./audio/music/everyday.mp3"
+                            loop
+                        ></audio>
                         <vn-actor
                             uid="haruka"
                             name="Haruka"
@@ -82,22 +88,36 @@
                             &face="smile"
                         >
                             <vn-style>
-                                :host {
-                                    transform: scale(1.7);
-                                }
+                                :host { transform: scale(1.7); }
                             </vn-style>
 
-                            <body-part
-                                uid="pose"
-                            >
-                                <img src="./images/actors/haruka/pose-normal.png" uid="normal" />
+                            <body-part uid="pose">
+                                <img
+                                    src="./images/actors/haruka/pose-normal.png"
+                                    uid="normal"
+                                />
                             </body-part>
-                            <body-part
-                                uid="face"
-                            >
-                                <img src="./images/actors/haruka/face-smile.png" uid="smile" />
+                            <body-part uid="face">
+                                <img
+                                    src="./images/actors/haruka/face-smile.png"
+                                    uid="smile"
+                                />
                             </body-part>
                         </vn-actor>
+
+                        <vn-actor
+                            uid="kacey"
+                            name="Kacey"
+                            &pose="normal"
+                        >
+                            <body-part uid="pose">
+                                <img
+                                    src="./images/actors/kacey/pose-throw-back-hair.png"
+                                    uid="normal"
+                                />
+                            </body-part>
+                        </vn-actor>
+
 
                         <text-box
                             uid="default"
@@ -106,8 +126,8 @@
                                 border: 2px solid rgba(255, 255, 255, 0.5);
                                 box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
                                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana,
-                                sans-serif;
-                                font-size: 1.4em;
+                                    sans-serif;
+                                font-size: 24px;
                                 height: 55svh;
                             "
                             bottom="2%"
@@ -115,54 +135,52 @@
                             right="5%"
                             height="30%"
                             background="linear-gradient(to bottom, rgba(10, 20, 40, 0.6), rgba(5, 10, 20, 0.9))"
-                            ms="40"
+                            ms="20"
                             start-delay="100"
                             end-delay="200"
                             scrolling
                         >
                         <vn-style uid="test">
                             :host {
-                                    .title {
-                                        font-size: 18px;
-                                        padding: 0.5em 1em;
-                                    }
-
-                                    .content {
-                                        font-size: 1em;
-                                        padding: 0.8em 1em;
-                                        line-height: 1.5;
-                                    }
-
-                                    .indicator {
-                                        color: #87ceeb;
-                                    }
-                                
+                                transform: scale(3.0) translateY(-50%) !important;
+                                color: red !important;
                             }
-    
-                            .stand {
-                                color: rgb(165, 47, 47);
-                                font-weight: bold;
-                            }
-    
-                            .item {
-                                color: rgb(47, 165, 47);
-                                font-weight: bold;
-                            }
-
-                            
                         </vn-style>
+                        
                         </text-box>
+
+                        <text-box
+                            uid="choices-default"
+                            style="
+                                border-radius: 8px;
+                                border: 2px solid rgba(255, 255, 255, 0.5);
+                                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana,sans-serif;
+                                font-size: 1.4em;
+                                height: 55svh;
+                            "
+                            bottom="2%"
+                            left="5%"
+                            right="5%"
+                            height="55%"
+                            background="linear-gradient(to bottom, rgba(10, 20, 40, 0.7), rgba(5, 10, 20, 1))"
+                            ms="20"
+                            start-delay="100"
+                            end-delay="200"
+                        >
+                            <vn-style>
+                                
+                            </vn-style>
+                        </text-box>
+
+                        
                     </vn-assets>
                 </vn-project>
 
-                <vn-scene textbox="default">
-                    <vn-script src="./test.vn.js"></vn-script>
+                <vn-scene textbox="default" choices="choices-default">
+                    <vn-script src="./test2.vn.js"></vn-script>
                 </vn-scene>
-
-                
             </vn-player>
-
-
         </div>
     </body>
 </html>

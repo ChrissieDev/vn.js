@@ -42,13 +42,8 @@ export default class VNCommandPick extends VNCommand {
         /**
          * @type {VNTextboxElement}
          */
-        const textBox = this.scene.cloneCurrentTextbox("", {
-            attributes: {
-                choices: "", // must enable the choices attribute to enable choice behavior for <text-box>
-            }
-        });
-        console.log(this);
-        textBox.setCommandSource(this);
+        const textBox = scene.getDefaultChoicebox();
+        console.log("VNCommandPick: Cloned default choice box:", textBox);
 
         console.log(textBox);
 

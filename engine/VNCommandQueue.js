@@ -268,7 +268,7 @@ export default class VNCommandQueue {
                 }
                 return new VNCommandChoice(this, commandObject.text, commandObject.commands);
             case "wait":
-                return new VNCommandWait(this, commandObject.time || "0s");
+                return new VNCommandWait(this, commandObject.until || "0s");
             case "eval":
                 if (typeof commandObject.execFunc !== "function") {
                     console.error(
@@ -321,6 +321,7 @@ export default class VNCommandQueue {
                     `VNQ executeCurrent: Command ${this.i} returned a promise.`,
                     command
                 );
+
                 res.then((value) => {
                     this.i++;
                     
@@ -328,10 +329,11 @@ export default class VNCommandQueue {
                         // a queue was returned. we have to nest into it
                         value.parentQueue = this;
                         value.scene = this.scene;
-                        this.player.setCurrentQueue(value);
-                        this.player.continueExecution();
+                        this.player.setCurrentQueue(value);   
                     }
+                    this.player.continueExecution();
                 });
+
                 continueExecution = false; // Pause execution until the promise resolves
             } else {
                 continueExecution = res;

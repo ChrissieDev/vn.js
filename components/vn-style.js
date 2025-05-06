@@ -18,15 +18,7 @@ export default class VNStyleElement extends HTMLElement {
 
     connectedCallback() {
         let styleToAdd = null;
-
-        if (this.closest("vn-project") !== null) {
-            const uid = this.getAttribute("uid");
-            console.info(
-                `\x1b[32m[Style DEF: ${uid} ]\x1b[0m`
-            );
-            return;
-        }
-
+        
         if (!this.parentElement.shadowRoot) {
             console.error(
                 "Parent element does not have a shadow root. Returning without applying styles..."
@@ -66,12 +58,13 @@ export default class VNStyleElement extends HTMLElement {
                 }
             });
         } else {
-            const text = this.innerHTML.trim();
+            const text = this.textContent.trim();
+
             if (text.length > 0) {
                 const styleElement = document.createElement("style");
+                styleElement.classList.add("injected-style");
                 styleElement.textContent = text;
                 styleToAdd = styleElement;
-                
             } else {
                 console.warn(
                     "VNStyle: No href/src attribute or innerHTML provided. Returning without applying styles..."
@@ -88,9 +81,16 @@ export default class VNStyleElement extends HTMLElement {
             return;
         }
  
-        styleToAdd.setAttribute("data-vn-processed", "");
-        styleToAdd.shadowRootTarget = this.parentElement.shadowRoot;
-        this.parentElement.shadowRoot.appendChild(styleToAdd);
+        if (this.parentElement.shadowRoot) {
+            if (styleToAdd.hasAttribute("data-vn-processed")) {
+                styleToAdd.removeAttribute("data-vn-processed");
+            }
+            this.parentElement.shadowRoot.appendChild(styleToAdd);
+        } else {
+            console.error(
+                "VNStyle: Parent element does not have a shadow root. Returning without applying styles..."
+            );
+        }
     }
 
     /**

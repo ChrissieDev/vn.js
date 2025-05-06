@@ -77,13 +77,21 @@ export default class VNProjectElement extends HTMLElement {
      * @returns {Element | null} The definition element or null if not found.
      */
     getAssetDefinition(uid) {
+        
         if (!this.#assetsElement) {
             console.error(
                 "<vn-project> cannot find assets: <vn-assets> element is missing."
             );
             return null;
         }
-        return this.#assetsElement.getDefinition(uid);
+
+        const res = this.#assetsElement.getDefinition(uid);
+        if (uid === 'choices-default') {
+            // debug
+            console.warn("VNProjectElement: Result for choices-default", res);
+        }
+
+        return res;
     }
 }
 

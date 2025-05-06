@@ -134,6 +134,7 @@ export default class VNPlayerElement extends HTMLElement {
     getMainQueue() {
         return this.#mainScriptQueue;
     }
+
     /**
      * @todo Define all the `runtime_` prefixed methods in here instead without the prefix.
      * This is also good to check which names collide with the runtime API.
@@ -703,11 +704,11 @@ export default class VNPlayerElement extends HTMLElement {
         }
     };
 
-    #runtime_WAIT = (time) => {
-        console.log("API: WAIT called with time:", time);
+    #runtime_WAIT = (until) => {
+        console.log("API: WAIT called with time:", until);
         return {
             type: "wait",
-            time,
+            until,
         }
     }
     #runtime_SELECT = (uid) => {

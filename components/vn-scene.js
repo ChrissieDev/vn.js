@@ -233,8 +233,9 @@ export default class VNSceneElement extends HTMLElement {
                     for (const node of mutation.addedNodes) {
                         if (node.nodeType === Node.ELEMENT_NODE) {
                             nodesToAdd.push(node);
-                            if (node.matches?.("img[ambient]"))
+                            if (node.matches?.("img[ambient]")) {
                                 ambientNeedsUpdate = true;
+                            }
                         }
                     }
                     for (const node of mutation.removedNodes) {
@@ -287,9 +288,9 @@ export default class VNSceneElement extends HTMLElement {
                         } else if (
                             attrName === "src" &&
                             (tagName === "audio" || tagName === "video")
-                        )
+                        ) {
                             nodesToRecheck.push(targetElement);
-                        else if (attrName === "textbox" && isSelf) {
+                        } else if (attrName === "textbox" && isSelf) {
                             console.log(
                                 "Scene: `textbox` attribute changed. New textboxes will use definition:",
                                 mutation.target.getAttribute("textbox")
@@ -665,9 +666,7 @@ export default class VNSceneElement extends HTMLElement {
                         tagNameLower === "video"
                     ) {
                         this.#configureMediaInstance(child, definition);
-                    } else if (tagNameLower === "style") {
-                        this.#handleAddStyleElement(child, definition);
-                    }
+                    } 
                 } catch (error) {
                     console.error(
                         `vn-scene: Error configuring instance ${uid} from definition:`,
@@ -688,6 +687,10 @@ export default class VNSceneElement extends HTMLElement {
                 ) {
                     potentiallyChangedAmbient = true;
                 }
+            }
+
+            if (tagNameLower === "style") {
+                this.#handleAddStyleElement(child, definition);
             }
 
             child.removeAttribute("data-vn-processed");
@@ -821,10 +824,6 @@ export default class VNSceneElement extends HTMLElement {
             targetSlot = "media";
         } else if (tagName === "style") {
             targetSlot = "";
-        } else if (element.parentElement == this && element.shadowRootTarget) {
-            console.log(
-                `VNScene.addElement: Element is trying to add itself to a nested component's shadow root. Skipping...`
-            );
         } else {
             console.warn(
                 `VNScene.addElement: Unsupported type "${tagName}". Adding to default slot.`
@@ -922,11 +921,12 @@ export default class VNSceneElement extends HTMLElement {
                 `VNScene: Adding new <style> with uid "${uid}" to shadow DOM.`,
                 elementToAdd
             );
+            alert("Adding new style to shadow DOM.");
             this.shadowRoot.appendChild(elementToAdd);
         }
     }
 
-    cloneCurrentTextbox(content = "", options = {
+    cloneDefaultTextbox(content = "", options = {
         attributes: {},
     }) {
         let newTextbox = null;
@@ -967,12 +967,59 @@ export default class VNSceneElement extends HTMLElement {
         return newTextbox;
     }
 
+    cloneDefaultChoicebox(content = "", options = {
+        attributes: {},
+    }) {
+        let newTextbox = null;
+        const definitionUid = this.getAttribute("choices");
+        const player = this.player;
+
+        if (definitionUid && player) {
+            const definition = player.getAssetDefinition(definitionUid);
+            if (definition && definition instanceof VNTextboxElement) {
+                newTextbox = definition.cloneNode(true);
+                
+                for (const [key, value] of Object.entries(options.attributes)) {
+                    if (value === null) {
+                        newTextbox.removeAttribute(key);
+                    } else {
+                        newTextbox.setAttribute(key, value);
+                    }
+                }
+                newTextbox.setAttribute("slot", "choices");
+                newTextbox.setAttribute("choices", "");
+                // don't allow the user to override this
+                newTextbox.setAttribute("ref", definitionUid);
+                newTextbox.textContent = content;
+            } else {
+                console.error(
+                    `Scene: Textbox definition "${definitionUid}" not found or not a <text-box>. Falling back.`,
+                    definition
+                );
+
+                return null;
+            }
+        }
+
+        if (!newTextbox) {
+            console.log("Scene: Creating default textbox instance.");
+            newTextbox = document.createElement("text-box");
+        }
+
+        return newTextbox;
+    }
+
+    getDefaultChoicebox() {
+        const choicebox = this.cloneDefaultChoicebox();
+        return choicebox;
+    }
+
     /** 
      * Creates a new VNTextboxElement instance based on the scene's 'textbox' definition attribute.
      * @returns {VNTextboxElement | null} The new textbox instance.
      */
     acquireTextbox() {
-        const newTextbox = this.cloneCurrentTextbox();
+        const newTextbox = this.cloneDefaultTextbox();
         this.addElement(newTextbox);
         return newTextbox;
     }

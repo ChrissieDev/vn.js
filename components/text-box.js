@@ -66,8 +66,8 @@ export default class VNTextboxElement extends HTMLElement {
      * @todo make these customizable
      */
     #speed = {
-        " ": 50,
-        ".": 150,
+        " ": 15,
+        ".": 70,
         "?": 125,
         "!": 125,
         "~": 200,
@@ -104,6 +104,7 @@ export default class VNTextboxElement extends HTMLElement {
         "unskippable",
         "title",
         "style",
+        "choices",
     ];
 
     constructor() {
@@ -113,8 +114,8 @@ export default class VNTextboxElement extends HTMLElement {
         <style>
 
             @keyframes bump {
-                0% { transform: scale(0.97); opacity: 0; }
-                50% { transform: scale(1.03); opacity: 1; }
+                0% { transform: scale(0.98); opacity: 0; }
+                50% { transform: scale(1.02); opacity: 1; }
                 100% { transform: scale(1); }
             }
 
@@ -131,7 +132,6 @@ export default class VNTextboxElement extends HTMLElement {
                 overflow: hidden;
                 font-family: 'Helvetica', 'Arial', sans-serif;
                 user-select: none;
-                cursor: pointer;
                 height: 25%;
             }
 
@@ -144,12 +144,12 @@ export default class VNTextboxElement extends HTMLElement {
                 background-color: rgba(25, 31, 44, 0.5);
                 color: #fff;
                 line-height: 1.6;
-                padding: 12px 18px;
+                padding: 6px 9px;
                 font-weight: bold;
                 border-bottom: 1px solid #444;
                 min-height: 1em;
                 flex-shrink: 0;
-                font-size: 32px;
+                font-size: 28px;
             }
 
             .title:empty {
@@ -164,20 +164,37 @@ export default class VNTextboxElement extends HTMLElement {
                 overflow-y: auto;
                 scrollbar-width: none;
                 min-height: 1.5em;
-                font-size: 32px;
                 font-weight: 400;
+
             }
 
             /**
-             * NEW: Repurposing <text-box> for VNCommandChoice to show a box with buttons
-             */
+            * NEW: Repurposing <text-box> for VNCommandChoice to show a box with buttons
+            */
             .choices {
                 display: flex;
                 flex-direction: column;
+                gap: 8px;
+                line-height: 1.6;
             }
 
-            .choice-item {
-                padding: 0.5em 1em;
+            .choices ::slotted(.choice-button) {
+                background-color: transparent;
+                border-left: 4px solid #fff;
+                border-right: none;
+                border-top: none;
+                border-bottom: none;
+                
+            }
+
+            .choices ::slotted(.choice-item) {
+                font-size: 24px;
+                font-weight: 400;
+                color: #fff;
+                font-family: 'Helvetica', 'Arial', sans-serif;
+                line-height: 1.6;
+                padding: 8px 16px;
+                text-align: left;
             }
 
             .content::-webkit-scrollbar {
