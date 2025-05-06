@@ -6,7 +6,7 @@
  * Attempts to automatically size based on largest part image (from definition) if no explicit size is set via style.
  * Scales relative to container via CSS (e.g., percentage height + aspect-ratio).
  */
-import "./body-part.js";
+import "./vn-layer.js";
 
 const DESIGN_HEIGHT = 1080;
 
@@ -27,7 +27,7 @@ export default class VNActorElement extends HTMLElement {
     #maxImageHeight = 0;
     #calculatedRelativeHeight = null;
 
-    static observedAttributes = ["uid", "name", "style"];
+    static observedAttributes = ["uid", "name", "style", "actor"];
 
     constructor() {
         super();
@@ -99,19 +99,19 @@ export default class VNActorElement extends HTMLElement {
                 }
 
                 
-                ::slotted(body-part) {
+                ::slotted(vn-layer) {
                     display: none !important;
                 }
             </style>
             <div class="actor-wrapper" part="wrapper">
                 <!-- Active images will be added here dynamically -->
             </div>
-            <slot></slot> <!-- Slot ONLY for body-part definitions -->
+            <slot></slot> <!-- Slot ONLY for vn-layer definitions -->
         `;
 
         this.#playerPromise = Promise.all([
             customElements.whenDefined("vn-player"),
-            customElements.whenDefined("body-part"),
+            customElements.whenDefined("vn-layer"),
         ]);
     }
 
@@ -236,9 +236,9 @@ export default class VNActorElement extends HTMLElement {
         this.#maxImageHeight = 0;
         this.#calculatedRelativeHeight = null;
 
-        const bodyPartDefs = this.querySelectorAll(":scope > body-part[uid]");
+        const bodyPartDefs = this.querySelectorAll(":scope > vn-layer[uid]");
         if (bodyPartDefs.length === 0) {
-            console.warn(`[DEF ${id}] NO <body-part> child elements found.`);
+            console.warn(`[DEF ${id}] NO <vn-layer> child elements found.`);
         }
 
         const imagePromises = [];
@@ -489,7 +489,7 @@ export default class VNActorElement extends HTMLElement {
                 `[${instanceId}] #addOrReplace: Image definition not found for ${bodyPartUid}/${stateUid}.`
             );
             const existingImg = wrapper.querySelector(
-                `img[data-body-part="${bodyPartUid}"]`
+                `img[data-vn-layer="${bodyPartUid}"]`
             );
             if (existingImg) {
                 console.warn(
@@ -527,7 +527,7 @@ export default class VNActorElement extends HTMLElement {
         newImgInstance.loading = "lazy";
 
         const existingImg = wrapper.querySelector(
-            `img[data-body-part="${bodyPartUid}"]`
+            `img[data-vn-layer="${bodyPartUid}"]`
         );
         if (existingImg) {
             existingImg.remove();
@@ -591,7 +591,7 @@ export default class VNActorElement extends HTMLElement {
                     );
                     if (
                         !this.#shadow.querySelector(
-                            `.actor-wrapper img[data-body-part="${bodyPartUid}"]`
+                            `.actor-wrapper img[data-vn-layer="${bodyPartUid}"]`
                         )
                     ) {
                         this.#activeState.delete(bodyPartUid);
@@ -628,7 +628,7 @@ export default class VNActorElement extends HTMLElement {
         return new Map(this.#activeState);
     }
 
-    /** Gets the map of <body-part> definition elements (relevant for definitions). */
+    /** Gets the map of <vn-layer> definition elements (relevant for definitions). */
     getDefinitionBodyPartDefs() {
         if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
             console.warn(

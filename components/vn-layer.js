@@ -1,9 +1,9 @@
 /**
- * @file body-part.js
- * Implements the VNBodyPartElement custom element.
+ * @file vn-layer.js
+ * Implements the VNLayerElement custom element.
  * Acts as a container for different state images (<img> elements) of a specific part of an actor.
  */
-export default class VNBodyPartElement extends HTMLElement {
+export default class VNLayerElement extends HTMLElement {
     constructor() {
         super();
     }
@@ -60,4 +60,4 @@ export default class VNBodyPartElement extends HTMLElement {
     }
 }
 
-customElements.define('body-part', VNBodyPartElement);
+customElements.define('vn-layer', VNLayerElement);

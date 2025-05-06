@@ -480,7 +480,7 @@ export default class VNPlayerElement extends HTMLElement {
 
                 // Does the actor function already exist in the runtime?
                 if (uid && !this.#runtime[uid]) {
-                    const actorFunction = this.#createActorFunction(
+                    const actorFunction = this.#createAssetFunction(
                         uid,
                         name,
                         actorDef
@@ -528,7 +528,7 @@ export default class VNPlayerElement extends HTMLElement {
      * @param {VNActorElement} actorDef
      * @returns
      */
-    #createActorFunction(uid, displayName, actorDef) {
+    #createAssetFunction(uid, displayName, actorDef) {
         console.log(
             `Creating runtime function for actor: ${uid} (Display: ${displayName})`
         );
