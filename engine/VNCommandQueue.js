@@ -6,7 +6,7 @@ import { VNCommandIf, VNCommandElse } from "./commands/VNCommandIf.js";
 import VNCommandStart from "./commands/VNCommandStart.js";
 import VNCommandSay from "./commands/VNCommandSay.js";
 import VNCommandAddObject from "./commands/VNCommandAddObject.js";
-import VNCommandSetActorState from "./commands/VNCommandSetActorState.js";
+import VNCommandSetActorLayers from "./commands/VNCommandSetActorState.js";
 import VNCommandEvalJS from "./commands/VNCommandEvalJS.js";
 import VNCommandAnimate from "./commands/VNCommandAnimate.js";
 import VNCommandPick from "./commands/VNCommandPick.js";
@@ -125,7 +125,7 @@ export default class VNCommandQueue {
                     parsedCommand.queue = this;
                 }
                 if (
-                    parsedCommand instanceof VNCommandSetActorState &&
+                    parsedCommand instanceof VNCommandSetActorLayers &&
                     !parsedCommand.queue
                 ) {
                     parsedCommand.queue = this;
@@ -178,7 +178,7 @@ export default class VNCommandQueue {
 
                 if (parsedCommand instanceof VNCommandIf) {
                     lastIfCommand = parsedCommand;
-                } else if (!(parsedCommand instanceof VNCommandSetActorState)) {
+                } else if (!(parsedCommand instanceof VNCommandSetActorLayers)) {
                     lastIfCommand = null;
                 }
             }

@@ -6,9 +6,9 @@
  
 
 import VNProjectElement from "./vn-project.js";
-import VNAssetsElement from "./vn-assets.js";
+import VNAssetsElement from "./vn-project.js";
 import VNActorElement from "./vn-actor.js";
-import VNBodyPartElement from "./body-part.js";
+import VNBodyPartElement from "./vn-layer.js";
 import VNSceneElement from "./vn-scene.js";
 import VNTextBoxElement from "./text-box.js";
 import VNScriptElement from "./vn-script.js";

@@ -2,22 +2,22 @@ import VNCommand from "../VNCommand.js";
 
 /**
  * @summary
- * Sets the state of a specific body part of an actor to a new state.
- * The state is defined by the UID of the target image within the body part.
+ * Sets the state of a specific vn-layer of an actor to a new state.
+ * The state is defined by the UID of the target image within the vn-layer.
  */
-export default class VNCommandSetActorState extends VNCommand {
+export default class VNCommandSetActorLayers extends VNCommand {
     type = 'setActorState';
     actorUid = null;
-    bodyPartUid = null;
+    vnLayerUid = null;
     newStateUid = null;
 
-    constructor(queue, actorUid, bodyPartUid, newStateUid) {
+    constructor(queue, actorUid, vnLayerUid, newStateUid) {
         super(queue);
-        if (!actorUid || !bodyPartUid || typeof newStateUid !== 'string') {
+        if (!actorUid || !vnLayerUid || typeof newStateUid !== 'string') {
             throw new Error("VNCommandSetActorState: Invalid arguments provided.");
         }
         this.actorUid = actorUid;
-        this.bodyPartUid = bodyPartUid;
+        this.vnLayerUid = vnLayerUid;
         this.newStateUid = newStateUid;
     }
 
@@ -40,7 +40,7 @@ export default class VNCommandSetActorState extends VNCommand {
             return true;
         }
 
-        actorElement.setState(this.bodyPartUid, this.newStateUid);
+        actorElement.setState(this.vnLayerUid, this.newStateUid);
 
         return true;
     }

@@ -7,7 +7,7 @@ import html from "../utils/html.js";
  * Displays text and inline HTML, optionally with scrolling character by character
  * while preserving nested HTML structure, and handles user interaction for proceeding.
  * Converts triple hyphens (---) to em dashes (—) and double hyphens (--) to en dashes (–).
- * Can be defined in <vn-assets> and instantiated in <vn-scene>.
+ * Can be defined in <vn-project> and instantiated in <vn-scene>.
  */
 export default class VNTextboxElement extends HTMLElement {
     
@@ -55,31 +55,43 @@ export default class VNTextboxElement extends HTMLElement {
     #boundHandleKeydown = this.#handleKeydown.bind(this);
 
     /**
-     * The interval at which text is scrolled inside #textDisplayElement.
+     * The base interval at which text is scrolled inside #textDisplayElement.
      */
-    #scrollMs = 25;
-    #startDelayMs = 0;
-    #endDelayMs = 100;
+
+    get startDelayMs() {
+        return this.getAttribute("start-delay") || 0;
+    }
+    set startDelayMs(value) {
+        this.setAttribute("start-delay", value);
+    }
+
+    get endDelayMs() {
+        return this.getAttribute("end-delay") || 100;
+    }
+
+    set endDelayMs(value) {
+        this.setAttribute("end-delay", value);
+    }
 
     /**
      * Dictionary of characters that have a different scrolling speed when displayed.
      * @todo make these customizable
      */
-    #speed = {
-        " ": 15,
-        ".": 70,
-        "?": 125,
-        "!": 125,
-        "~": 200,
-        ",": 100,
-        ";": 125,
-        ":": 125,
-        "—": 150, // Em dash (parsed from `---`)
-        "–": 100, // En dash (parsed from `--`)
-        "-": 50,  // Regular hyphen (keep original speed if desired)
+    charIntervals = {
+        " ": "150%",
+        ".": "700%",
+        "?": "700%",
+        "!": "700%",
+        "~": "200%",
+        ",": "350%",
+        ";": "350%",
+        ":": "500%",
+        "—": "500%", // Em dash (parsed from `---`)
+        "–": "300%", // En dash (parsed from `--`)
+        "-": "150%",  // Regular hyphen (keep original speed if desired)
     };
 
-    // Variables related to differentiating between a definition inside <vn-assets> and an instance inside <vn-scene>
+    // Variables related to differentiating between a definition inside <vn-project> and an instance inside <vn-scene>
     #isDefinitionParsed = false;
     #isInstanceInitialized = false;
 
@@ -147,9 +159,8 @@ export default class VNTextboxElement extends HTMLElement {
                 padding: 6px 9px;
                 font-weight: bold;
                 border-bottom: 1px solid #444;
-                min-height: 1em;
                 flex-shrink: 0;
-                font-size: 28px;
+                font-size: 1.2rem;
             }
 
             .title:empty {
@@ -165,7 +176,6 @@ export default class VNTextboxElement extends HTMLElement {
                 scrollbar-width: none;
                 min-height: 1.5em;
                 font-weight: 400;
-
             }
 
             /**
@@ -266,15 +276,15 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #updateInternalMsValues() {
-        this.#scrollMs = this.#parseTime(this.getAttribute("ms")) ?? 50;
-        this.#startDelayMs =
+        this.baseScrollTime = this.#parseTime(this.getAttribute("ms")) ?? 50;
+        this.startDelayMs =
             this.#parseTime(this.getAttribute("start-delay")) ?? 0;
-        this.#endDelayMs =
+        this.endDelayMs =
             this.#parseTime(this.getAttribute("end-delay")) ?? 100;
     }
 
     connectedCallback() {
-        const isDefinition = this.closest("vn-assets") !== null;
+        const isDefinition = this.closest("vn-project") !== null;
         const id = this.getAttribute("uid") || "anonymous";
 
         if (isDefinition) {
@@ -301,6 +311,10 @@ export default class VNTextboxElement extends HTMLElement {
                 this.#startDisplay();
             });
         }
+
+        this.#mutObserver.observe(this, {
+            attributes: true,
+        });
     }
 
     disconnectedCallback() {
@@ -391,7 +405,7 @@ export default class VNTextboxElement extends HTMLElement {
 
     /** Ensures the definition is parsed if this is a definition element. */
     ensureParsed() {
-        if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
+        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
             this.#parseDefinition();
         }
     }
@@ -399,7 +413,7 @@ export default class VNTextboxElement extends HTMLElement {
     /** Checks if this is a parsed definition element. */
     isParsed() {
         
-        return this.closest("vn-assets") !== null && this.#isDefinitionParsed;
+        return this.closest("vn-project") !== null && this.#isDefinitionParsed;
     }
 
     #clearTimeouts() {
@@ -410,6 +424,43 @@ export default class VNTextboxElement extends HTMLElement {
         this.#indicatorTimeoutId = null;
         this.#startDelayTimeoutId = null;
     }
+
+    // TODO: doesn't work - fix this to allow setting properties of certain objects like charIntervals
+    #trySetInternalObjectValueWithAttribute(target, attrName, value) {
+        const propMatch = attrName.match(/[\w+]\[(\w+_$)\]/)
+        console.log("\x1b[33mVNTextboxElement\x1b[0m: trySetInternalObjectValueWithAttribute", target, attrName, value);
+
+        // modification of internal variables
+        if (propMatch && propMatch.length == 2) {
+            alert("VNTextboxElement: Setting internal object value with attribute " + attrName + " to " + value);
+            const propName = propMatch[1];
+
+            if (Object.hasOwn(target, propName)) {
+                const targetValue = target[propName];
+                
+                // only allow number/string/boolean/null to be set
+                if (typeof targetValue === 'object' || typeof targetValue === 'function' || typeof targetValue === 'symbol' || typeof targetValue === 'bigint') {
+                    console.warn("An attempt to set a non-primitive value on", target, "with attribute", attrName, "was ignored. Value:", value);
+                    return; // Skip setting non-primitive values
+                }
+
+                target[propName] = value;
+                
+                return true; // Successfully set the value
+            }
+        }
+        
+        return false; // No property match found, return false
+    }
+
+    #mutObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.type === "attributes") {
+                console.log("VNTextboxElement: Attribute changed:", mutation.attributeName, "to", mutation.target.getAttribute(mutation.attributeName));
+                this.#trySetInternalObjectValueWithAttribute(mutation.target, mutation.attributeName, mutation.target.getAttribute(mutation.attributeName));            
+            }
+        }
+    });
 
     #scrollToBottom() {
         
@@ -436,7 +487,7 @@ export default class VNTextboxElement extends HTMLElement {
 
 
     #startDisplay() {
-        if (!this.#isInstanceInitialized && !this.closest("vn-assets")) {
+        if (!this.#isInstanceInitialized && !this.closest("vn-project")) {
             console.warn(
                 "VNTextbox: #startDisplay called before instance initialized. Initializing now."
             );
@@ -495,11 +546,11 @@ export default class VNTextboxElement extends HTMLElement {
 
         if (this.scrolling) {
             this.#isScrolling = true;
-            if (this.#startDelayMs > 0) {
+            if (this.startDelayMs > 0) {
                 this.#startDelayTimeoutId = setTimeout(() => {
                     this.#startDelayTimeoutId = null;
                     if (this.#isScrolling) this.#scrollLoop(); // Start scrolling after delay
-                }, this.#startDelayMs);
+                }, this.startDelayMs);
             } else {
                 this.#scrollLoop(); // Start scrolling immediately
             }
@@ -520,14 +571,39 @@ export default class VNTextboxElement extends HTMLElement {
         if (this.#currentTextNode) {
             // Use the pre-processed text content
             const text = this.#currentTextNodeProcessedContent || "";
+
             if (this.#currentCharIndex < text.length) {
                 const char = text[this.#currentCharIndex];
                 this.#currentTargetShadowTextNode.nodeValue += char; // Append char to shadow DOM
                 this.#currentCharIndex++;
 
-                const charDelay = this.#speed[char] ?? 0; // Get specific char delay
-                const delay = Math.max(1, this.#scrollMs + charDelay); // Ensure minimum 1ms delay
+                let delay = this.charIntervals[char] || this.ms; // Get specific char delay
+                console.log(`VNTextboxElement: Appending "${char}" with delay "${delay}"`);
+                if (typeof delay === "string") {
+                    let delayMs = 0;
+                    let delayStringNumber = /^\d+$/.exec(delay);
+                    let delayStringPercentMatch = delay.match(/^(\d+)%$/);
+                    let delayStringPercent = delayStringPercentMatch ? delayStringPercentMatch[1] : null;
 
+                    // check specifically for null because a value of 0 is falsy
+                    if (delayStringNumber !== null) {
+                        delayMs = Math.floor(parseFloat(delay) || 0);
+                    } else if (delayStringPercent !== null) {
+                        delayMs = Math.floor((parseFloat(delayStringPercent) / 100) * this.ms);
+                        console.log(`VNTextboxElement: Converted "${delay}" to ${delayMs}ms`);
+                    }
+
+                    if (delayMs < 0) {
+                        throw new Error(`VNTextboxElement: Delay for character "${char}" cannot be negative! Got "${delay}".`);
+                    }
+
+                    if (!(delayStringNumber || delayStringPercent)) {
+                        throw new Error(`VNTextboxElement: Invalid character delay value "${delay}". Valid format for charDelay (as string) is "number" or "number%"`);
+                    }
+
+                    delay = delayMs;
+                }
+                
                 this.#scrollToBottom(); // Scroll if needed
                 this.#scrollTimeoutId = setTimeout(() => this.#scrollLoop(), delay); // Schedule next char
                 return; // Wait for timeout
@@ -583,7 +659,7 @@ export default class VNTextboxElement extends HTMLElement {
                 }
 
                 // Add a small delay after processing an element for pacing
-                const elementDelay = Math.max(1, this.#scrollMs);
+                const elementDelay = Math.max(1, this.ms);
                 this.#scrollToBottom();
                 this.#scrollTimeoutId = setTimeout(() => this.#scrollLoop(), elementDelay);
                 return; // Wait for timeout
@@ -747,7 +823,7 @@ export default class VNTextboxElement extends HTMLElement {
         clearTimeout(this.#indicatorTimeoutId);
         this.#indicatorTimeoutId = null;
 
-        const delay = wasSkipped ? 0 : this.#endDelayMs; // No delay if text was skipped
+        const delay = wasSkipped ? 0 : this.endDelayMs; // No delay if text was skipped
 
         if (delay > 0) {
             this.#indicatorTimeoutId = setTimeout(() => {
@@ -801,7 +877,7 @@ export default class VNTextboxElement extends HTMLElement {
 
     #handleInteraction(event) {
         
-        if (this.closest("vn-assets")) return; // Ignore interactions on definition elements
+        if (this.closest("vn-project")) return; // Ignore interactions on definition elements
 
         if (this.#isScrolling && !this.#isSkipping) {
             // If text is scrolling, interaction skips the scrolling
@@ -823,7 +899,7 @@ export default class VNTextboxElement extends HTMLElement {
 
     #handleKeydown(event) {
         
-        if (this.closest("vn-assets")) return; // Ignore keydown on definition elements
+        if (this.closest("vn-project")) return; // Ignore keydown on definition elements
 
         // Allow Space or Enter to trigger the same interaction as a click
         if (event.code === "Space" || event.code === "Enter") {
@@ -863,8 +939,8 @@ export default class VNTextboxElement extends HTMLElement {
 
     #syncAttribute(name, value) {
         
-        if (this.closest('vn-assets') && !this.#isDefinitionParsed && name !== 'uid') return; // Don't sync non-UID attributes on unparsed definitions
-
+        if (this.closest('vn-project') && !this.#isDefinitionParsed && name !== 'uid') return; // Don't sync non-UID attributes on unparsed definitions
+        
         const useValue = value !== null ? value : 'auto'; // Default for position/size if value is null
 
         switch (name) {
@@ -931,8 +1007,13 @@ export default class VNTextboxElement extends HTMLElement {
     }
 
     #syncAllAttributes() {
+        const nonObservedAttributes = this.getAttributeNames().filter(attr => !VNTextboxElement.observedAttributes.includes(attr));
         
-        VNTextboxElement.observedAttributes.forEach(attrName => {
+        for (const attr of nonObservedAttributes) {
+            this.#trySetInternalObjectValueWithAttribute(this, attr, this.getAttribute(attr));
+        }
+
+        for (const attrName of VNTextboxElement.observedAttributes) {
             if (this.hasAttribute(attrName)) {
                 this.#syncAttribute(attrName, this.getAttribute(attrName));
             } else {
@@ -940,7 +1021,7 @@ export default class VNTextboxElement extends HTMLElement {
                 // For simplicity, current implementation mostly relies on setting attributes
                 // this.#syncAttribute(attrName, null); // Example if removal needs explicit handling
             }
-        });
+        };
         this.#updateTitleVisibility(); // Ensure title visibility is correct after sync
     }
 
@@ -971,7 +1052,7 @@ export default class VNTextboxElement extends HTMLElement {
     attributeChangedCallback(name, oldValue, newValue) {
         if (!this.isConnected || oldValue === newValue) return; // Ignore if not connected or value hasn't changed
 
-        if (this.closest("vn-assets")) {
+        if (this.closest("vn-project")) {
             // Handle changes on definition elements (e.g., mark as needing re-parse?)
             // console.log(`[DEF Textbox ${this.getAttribute('uid')}] Attribute changed: ${name}`);
         } else {
@@ -1055,9 +1136,9 @@ export default class VNTextboxElement extends HTMLElement {
     setStartDelay(value) { this.startDelay = value; }
     setEndDelay(value) { this.endDelay = value; }
 
-    getScrollMilliseconds() { return this.#scrollMs; }
-    getStartDelayMilliseconds() { return this.#startDelayMs; }
-    getEndDelayMilliseconds() { return this.#endDelayMs; }
+    getScrollMilliseconds() { return this.ms; }
+    getStartDelayMilliseconds() { return this.startDelayMs; }
+    getEndDelayMilliseconds() { return this.endDelayMs; }
 
     /** Removes the textbox element from the DOM and cleans up timeouts. */
     destroy() {
@@ -1068,14 +1149,14 @@ export default class VNTextboxElement extends HTMLElement {
 
     /** Manually triggers the proceed action (if possible). */
     proceed() {
-        if (!this.closest("vn-assets")) {
+        if (!this.closest("vn-project")) {
             this.#handleInteraction(new Event("synthetic-proceed"));
         }
     }
 
     /** Restarts the text display process (clears existing text, handles scrolling/delays). */
     redisplay() {
-        if (this.isConnected && !this.closest("vn-assets")) {
+        if (this.isConnected && !this.closest("vn-project")) {
             this.#updateInternalMsValues(); // Ensure timing values are current
             requestAnimationFrame(() => {
                 this.#startDisplay(); // Restart the display logic

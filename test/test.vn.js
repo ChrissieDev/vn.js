@@ -23,7 +23,7 @@ let user = `Anon`;
 const testScene = SCENE(
     
     // ADD is an object that contains all the command functions to add project-defined assets to the scene.
-    // they must be defined inside the project's <vn-assets> element with their default state.
+    // they must be defined inside the project's <vn-project> element with their default state.
     // Their element, with its default state, gets cloned and added to the scene as an instance.
     ADD.ACTOR(`kacey`, {
         style: `transform: translate(0px, 0px) scale(1);`, // applying styles to the element

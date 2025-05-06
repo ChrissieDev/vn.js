@@ -1,3 +1,6 @@
+const oldWarn = console.warn;
+
+
 const scene = SCENE(
     ADD.ACTOR(`kacey`, {
         style: `transform: translate(0px, 0px) scale(1);`,
@@ -13,7 +16,7 @@ const scene = SCENE(
         }
     },
 
-    ADD.IMAGE(`back-of-classroom-day`),
+    ADD.IMAGE(`classroom-day`),
     
     START,
 
@@ -72,6 +75,12 @@ const scene = SCENE(
 
             kacey
             `Oh my god, you're so right!`,
+        ),
+        
+        CHOICE(`...`,
+            you,
+            `(<i>... Why is she talking to me? She bullies me like every day.</i>)`
+            
         )
     )
 

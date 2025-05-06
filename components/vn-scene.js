@@ -539,7 +539,7 @@ export default class VNSceneElement extends HTMLElement {
 
     /**
      * Processes child elements that reference a unique id that references some asset/definition
-     * defined in the visual novel's project. In the DOM, this is the player's <vn-assets> element, a direct child of <vn-project>.
+     * defined in the visual novel's project. In the DOM, this is the player's <vn-project> element, a direct child of <vn-project>.
      */
     async #processAddedChildrenForUIDs(children) {
         await this.#playerPromise;
@@ -801,7 +801,7 @@ export default class VNSceneElement extends HTMLElement {
 
     /** Adds an element to the scene, assigning it to the correct slot. */
     addElement(element) {
-        if (!element || !(element instanceof HTMLElement)) {
+        if (!element || !(element instanceof Element)) {
             console.warn(
                 "VNScene.addElement: Invalid element provided.",
                 element
@@ -845,15 +845,20 @@ export default class VNSceneElement extends HTMLElement {
             if (element.tagName.toLowerCase() === 'audio') {
                 const tryPlayAudio = () => {
                     setTimeout(() => {
-                        element.play().catch((e) => {
-                            console.warn(
-                                `Autoplay for ${element.src} was blocked:`,
-                                e.message
-                            );
+                        const promise = element.play().catch((e) => {
+                            this.player?.showInfo('no-audio');
 
                             tryPlayAudio();
                         });
-                    }, 1);
+
+                        // promise for when the player finally starts playing
+
+                        promise?.then(() => {
+                            if (!element.paused) {
+                                this.player?.hideInfo('no-audio');
+                            }
+                        });
+                    }, 1)
                 }
 
                 if (element.hasAttribute("volume")) {

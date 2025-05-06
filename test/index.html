@@ -31,9 +31,11 @@
                 height: 100%;
                 overflow: hidden;
             }
+
             vn-actor {
                 transition: all 0.1s allow-discrete;
             }
+            
             vn-actor:not(.speaking) {
                 filter: grayscale(0.1) brightness(0.8);
             }
@@ -50,6 +52,7 @@
                     opacity: 1;
                 }
             }
+
             vn-scene {
                 animation: fadein 10s linear;
             }
@@ -59,122 +62,82 @@
     <body>
         <div class="vn-container">
             <vn-player>
+                <!-- 
+                    A project holds persistent information such as importable media, actors, textboxes and their default state.
+                    When an element is inserted into the <vn-scene> that references a `uid`, 
+                    the player will look for the element in the project and attempt to clone it, overriding any attributes that are set.
+
+                    While it's perfectly valid to insert elements into <vn-scene> manually, you usually manipulate the scene
+                    via the scripting API.
+                 -->
                 <vn-project itemscope>
                     <!-- Projects should always have these meta tags -->
                     <meta itemprop="name" content="Untitled Visual Novel" />
-                    <meta
-                        itemprop="description"
-                        content="A simple visual novel using vn.js"
-                    />
+                    <meta itemprop="description" content="An example visual novel using vn.js" />
                     <meta itemprop="author" content="Anon" />
                     <meta itemprop="version" content="1.0" />
                     <meta itemprop="date" content="2025-04-29" />
                     <meta itemprop="license" content="MIT" />
+                    
+                    <!-- new: removed <vn-project>, assets are now defined directly instice <vn-project -->
+                    <vn-actor
+                        uid="kacey"
+                        name="Kacey"
+                        inline-layer-order="face, pose"
+                        &face="neutral"
+                        &pose="neutral"
+                    >
+                        <!-- new: 'trigger' to support dynamically toggling actor images at runtime -->
+                        <vn-layer uid="pose">
+                            <img src="images/actors/kacey/pose-neutral.png" uid="neutral" trigger="<-<" />
+                            <img src="images/actors/kacey/pose-crossed-arms.png" uid="crossed-arms" trigger="x-<" />
+                        </vn-layer>
+                        <vn-layer uid="eyes">
+                            <img src="images/actors/kacey/eyes-neutral.png" uid="neutral" trigger=":" />
+                            <img src="images/actors/kacey/eyes-^^.png" uid="happy" trigger="^^" />
+                            <img src="images/actors/kacey/eyes-scrutinize.png" uid="scrutinize" trigger="|:" />
+                            <img src="images/actors/kacey/eyes-silly.png" uid="silly" trigger="X" />
+                            <img src="images/actors/kacey/eyes-sad.png" uid="sad" trigger="<:" />
+                            <img src="images/actors/kacey/eyes-angry.png" uid="angry" trigger=">:" />
+                        </vn-layer>
+                    </vn-actor>
 
-                    <vn-assets>
-                        <img
-                            src="./images/backgrounds/_back_of_classroom_day.jpg"
-                            uid="back-of-classroom-day"
-                        />
-                        <audio
-                            uid="everyday"
-                            src="./audio/music/everyday.mp3"
-                            loop
-                        ></audio>
-                        <vn-actor
-                            uid="haruka"
-                            name="Haruka"
-                            &pose="normal"
-                            &face="smile"
-                        >
-                            <vn-style>
-                                :host { transform: scale(1.7); }
-                            </vn-style>
+                    <img uid="classroom-day" src="images/backgrounds/_back_of_classroom_day.jpg" />
+                    <audio uid="everyday" src="audio/music/everyday.mp3"></audio>
 
-                            <body-part uid="pose">
-                                <img
-                                    src="./images/actors/haruka/pose-normal.png"
-                                    uid="normal"
-                                />
-                            </body-part>
-                            <body-part uid="face">
-                                <img
-                                    src="./images/actors/haruka/face-smile.png"
-                                    uid="smile"
-                                />
-                            </body-part>
-                        </vn-actor>
-
-                        <vn-actor
-                            uid="kacey"
-                            name="Kacey"
-                            &pose="normal"
-                        >
-                            <body-part uid="pose">
-                                <img
-                                    src="./images/actors/kacey/pose-throw-back-hair.png"
-                                    uid="normal"
-                                />
-                            </body-part>
-                        </vn-actor>
-
-
-                        <text-box
-                            uid="default"
-                            style="
-                                border-radius: 8px;
-                                border: 2px solid rgba(255, 255, 255, 0.5);
-                                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana,
-                                    sans-serif;
-                                font-size: 24px;
-                                height: 55svh;
-                            "
-                            bottom="2%"
-                            left="5%"
-                            right="5%"
-                            height="30%"
-                            background="linear-gradient(to bottom, rgba(10, 20, 40, 0.6), rgba(5, 10, 20, 0.9))"
-                            ms="20"
-                            start-delay="100"
-                            end-delay="200"
-                            scrolling
-                        >
-                        <vn-style uid="test">
+                    <text-box
+                        uid="default"
+                        title=""
+                        ms="25"
+                        font-size="24px"
+                        color="#fff"
+                        left="5%"
+                        right="5%"
+                        bottom="5%"
+                        height="33%"
+                        charIntervals[a]="10000%"
+                        scrolling
+                    >
+                        <vn-style>
                             :host {
-                                transform: scale(3.0) translateY(-50%) !important;
-                                color: red !important;
+                                transform: scale(3.0) !important;
                             }
                         </vn-style>
-                        
-                        </text-box>
+                    </text-box>
 
-                        <text-box
-                            uid="choices-default"
-                            style="
-                                border-radius: 8px;
-                                border: 2px solid rgba(255, 255, 255, 0.5);
-                                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-                                font-family: 'Segoe UI', Tahoma, Geneva, Verdana,sans-serif;
-                                font-size: 1.4em;
-                                height: 55svh;
-                            "
-                            bottom="2%"
-                            left="5%"
-                            right="5%"
-                            height="55%"
-                            background="linear-gradient(to bottom, rgba(10, 20, 40, 0.7), rgba(5, 10, 20, 1))"
-                            ms="20"
-                            start-delay="100"
-                            end-delay="200"
-                        >
-                            <vn-style>
-                                
-                            </vn-style>
-                        </text-box>
-
-                        
-                    </vn-assets>
+                    <text-box 
+                        choices
+                        uid="choices-default"
+                        ms="25"
+                        font-size="24px"
+                        color="#fff"
+                        left="5%"
+                        right="5%"
+                        bottom="5%"
+                        height="50%"
+                        background-color="#000000aa"
+                        border-radius="10px"
+                    ></text-box>
                 </vn-project>
 
                 <vn-scene textbox="default" choices="choices-default">

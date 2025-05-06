@@ -1,12 +1,11 @@
 /**
  * @file vn-project.js
  * Implements the VNProjectElement custom element.
- * Contains project metadata and the <vn-assets> definitions.
+ * Contains project metadata and the <vn-project> definitions.
  */
-import "./vn-assets.js";
+import "./vn-project.js";
 
 export default class VNProjectElement extends HTMLElement {
-    #assetsElement = null;
     #metadata = {};
 
     constructor() {
@@ -25,22 +24,11 @@ export default class VNProjectElement extends HTMLElement {
     }
 
     connectedCallback() {
-        this.#findAssetsElement();
         this.#parseMetadata();
     }
 
     disconnectedCallback() {
-        this.#assetsElement = null;
         this.#metadata = {};
-    }
-
-    #findAssetsElement() {
-        this.#assetsElement = this.querySelector("vn-assets");
-        if (!this.#assetsElement) {
-            console.warn(
-                "<vn-project> is missing its <vn-assets> child element."
-            );
-        } 
     }
   
     #parseMetadata() {
@@ -64,34 +52,22 @@ export default class VNProjectElement extends HTMLElement {
     }
 
     /**
+     * NEW: Removed <vn-project>, assets are now directly inside <vn-project>.
      * Retrieves the VNAssetsElement instance associated with this project.
      * @returns {VNAssetsElement | null}
      */
     getAssetsElement() {
-        return this.#assetsElement;
+        return this;
     }
 
     /**
-     * Finds an asset definition element within the <vn-assets> container by its uid.
+     * Finds an asset definition element within the <vn-project> container by its uid.
      * @param {string} uid - The unique identifier of the asset definition.
      * @returns {Element | null} The definition element or null if not found.
      */
     getAssetDefinition(uid) {
+        return this.querySelector(`:scope > [uid="${uid}"]`);
         
-        if (!this.#assetsElement) {
-            console.error(
-                "<vn-project> cannot find assets: <vn-assets> element is missing."
-            );
-            return null;
-        }
-
-        const res = this.#assetsElement.getDefinition(uid);
-        if (uid === 'choices-default') {
-            // debug
-            console.warn("VNProjectElement: Result for choices-default", res);
-        }
-
-        return res;
     }
 }
 

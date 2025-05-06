@@ -7,15 +7,42 @@ import VNAnimation from "../engine/VNAnimation.js";
 import VNCommandQueue from "../engine/VNCommandQueue.js";
 import VNActorElement from "./vn-actor.js";
 
+// Don't enable this in production, it changes the behavior of the window's console methods which may cause issues with other libraries.
+const ENGINE_DEVMODE = true;
+
+
+
+if (ENGINE_DEVMODE) {
+    const oldWarn = console.warn;
+    const suppressWarnings = {
+        autoplayPolicy: false,
+    }
+    // Stop chrome's autoplay policy from spamming the console
+    console.warn = (...args) => {
+        
+        if (args[0] && typeof args[0] === "string") {
+            if (args[0].includes("Autoplay for")) {
+                if (!suppressWarnings.autoplayPolicy) {
+                    suppressWarnings.autoplayPolicy = true;
+                } else {
+                    return; // suppress this warning
+                }
+            }
+        }
+    
+        oldWarn(...args);
+    };
+}
+
 /**
  * @summary This is the top-level element for the visual novel engine.
  * It is responsible for loading the project data and assets, and hosting the <vn-scene> element where the state is rendered at runtime.
  * It also provides the runtime context for the VN script to execute in. VN Scripts are run by adding a <vn-script> element to the <vn-scene>.
  */
 export default class VNPlayerElement extends HTMLElement {
-    #projectElement = null;
-    #sceneElement = null;
-    #scriptElement = null;
+    projectElement = null;
+    sceneElement = null;
+    scriptElement = null;
 
     #mainScriptQueue = null;
     /**
@@ -55,62 +82,88 @@ export default class VNPlayerElement extends HTMLElement {
                     display: block;
                 }
 
-                ::slotted(vn-project),
-                ::slotted(script[type="text/vn-script"]) { 
+                ::slotted(vn-project) { 
                     display: none;
                 }
+                .info-overlay > * {
+                    transition-property: opacity, display;
+                    transition-duration: 2s;
+                    transition-behavior: allow-discrete;
+                }
+                .info-overlay:not([hidden]) {
+                    position: absolute;
+                    top: 0;
+                    height: auto;
+                    width: fit-content;
+                    user-select: none;
+                    pointer-events: none;
+
+                    .icon {
+                        pointer-events: auto;
+                        height: auto;
+                        aspect-ratio: 1;
+                        font-size: 1em;
+                    }
+                }
+
+                [hidden] {
+                    display: none !important;
+                }
             </style>
+
+            <!-- Warnings -->
+            <div class="info-overlay">
+                <span name="no-audio" class="icon" hidden title="Audio playback is being blocked by your browser.">
+                    🔇
+                </span>
+            </div>
             <slot></slot>
         `;
     }
 
+    showInfo(name = 'warning') {
+        const icon = this.shadowRoot.querySelector(`.info-overlay > [name="${name}"]`);
+        if (icon) {
+            icon.removeAttribute("hidden");
+        }
+    }
+
+    hideInfo(icon) {
+        const iconElement = this.shadowRoot.querySelector(`.info-overlay > [name="${icon}"]`);
+        if (iconElement) {
+            iconElement.setAttribute("hidden", "");
+        }
+    }
+
     async connectedCallback() {
-        this.#projectElement = this.querySelector("vn-project");
-        this.#sceneElement = this.querySelector("vn-scene");
+        this.projectElement = this.querySelector("vn-project");
+        this.sceneElement = this.querySelector("vn-scene");
 
-        /** @todo Only let scripts be run on <vn-scene> to make it clear where the script is executed. */
-        this.#scriptElement = this.querySelector(
-            '& > vn-scene > script[type="text/vn-script"]'
-        );
 
-        if (!this.#projectElement) {
+        if (!this.projectElement) {
             console.error(
                 "<vn-player> requires a <vn-project> child element to load assets and project data."
             );
         }
 
-        if (!this.#sceneElement) {
+        if (!this.sceneElement) {
             console.error(
                 "<vn-player> requires a <vn-scene> child element to display the game."
             );
         }
 
-        if (!this.#scriptElement) {
-            console.warn(
-                '<vn-player> does not have a <script type="text/vn-script"> child element. No game script will be loaded.'
-            );
-        } else {
-            await new Promise((resolve) => requestAnimationFrame(resolve));
-
-            if (typeof VNCommandQueue === "undefined") {
-                console.error(
-                    "Cannot prepare runtime: VNCommandQueue is undefined."
-                );
-                return;
-            }
-        }
-
         this.#initQueue();
         this.#prepareRuntimeContext();
+        
         await this.runScript();
 
         this.addEventListener("proceed", this.#handleProceed);
     }
 
     disconnectedCallback() {
-        this.#projectElement = null;
-        this.#sceneElement = null;
-        this.#scriptElement = null;
+        this.projectElement = null;
+        this.sceneElement = null;
+        this.scriptElement = null;
         this.#mainScriptQueue = null;
         this.#currentQueue = null;
         this.#executionPaused = false;
@@ -120,16 +173,16 @@ export default class VNPlayerElement extends HTMLElement {
     }
 
     getProject() {
-        return this.#projectElement;
+        return this.projectElement;
     }
     getScene() {
-        return this.#sceneElement;
+        return this.sceneElement;
     }
     getScriptElement() {
-        return this.#scriptElement;
+        return this.scriptElement;
     }
     getAssetDefinition(uid) {
-        return this.#projectElement?.getAssetDefinition(uid);
+        return this.projectElement?.getAssetDefinition(uid);
     }
     getMainQueue() {
         return this.#mainScriptQueue;
@@ -392,7 +445,7 @@ export default class VNPlayerElement extends HTMLElement {
     };
     
     #cleanupScene() {
-        this.#sceneElement.clearAll();
+        this.sceneElement.clearAll();
     }
 
     getQueue() {
@@ -404,7 +457,7 @@ export default class VNPlayerElement extends HTMLElement {
         this.#currentQueue = new VNCommandQueue({
             player: this,
             parentQueue: null,
-            scene: this.#sceneElement
+            scene: this.sceneElement
         });
     }
 
@@ -457,12 +510,12 @@ export default class VNPlayerElement extends HTMLElement {
             configurable: true,
         });
 
-        const assets = this.#projectElement?.getAssetsElement();
+        const assets = this.projectElement?.getAssetsElement();
 
         // Create a default definition for the "you" actor if it doesn't exist before any project is run.
         if (!assets) {
             throw new ReferenceError(
-                "No instance of <vn-assets> found in the project. Your <vn-project> must contain a <vn-assets> element!"
+                "No instance of <vn-project> found in the project. Your <vn-project> must contain a <vn-project> element!"
             );
         }
 
@@ -470,7 +523,7 @@ export default class VNPlayerElement extends HTMLElement {
             this.#ensureDefaultActorAsset(assets, "you", "You");
             const actorDefs = assets.querySelectorAll(":scope > vn-actor[uid]");
             console.log(
-                `Found ${actorDefs.length} actor definitions in <vn-assets>.`
+                `Found ${actorDefs.length} actor definitions in <vn-project>.`
             );
 
             // Build any actor functions that are missing from the runtime.
@@ -499,7 +552,7 @@ export default class VNPlayerElement extends HTMLElement {
             }
         } else {
             throw new ReferenceError(
-                `No instance of <vn-assets> found in the project. Your <vn-project> must contain a <vn-assets> element!`
+                `No instance of <vn-project> found in the project. Your <vn-project> must contain a <vn-project> element!`
             );
         }
 
@@ -516,7 +569,7 @@ export default class VNPlayerElement extends HTMLElement {
             actorEl.setAttribute("name", defaultName);
             assetsElement.appendChild(actorEl);
             console.log(
-                `Created <vn-actor uid="${uid}" name="${defaultName}"> in <vn-assets>.`
+                `Created <vn-actor uid="${uid}" name="${defaultName}"> in <vn-project>.`
             );
         }
     }
@@ -597,7 +650,7 @@ export default class VNPlayerElement extends HTMLElement {
         // getter for the actor's definition
         Object.defineProperty(actorFunc, "definition", {
             /**
-             * @returns {VNActorElement | null} The actor definition element inside <vn-assets>
+             * @returns {VNActorElement | null} The actor definition element inside <vn-project>
              */
             get: () => {
                 console.log(`(assetFunc) Asset definition referenced: ${uid}`);
@@ -720,7 +773,7 @@ export default class VNPlayerElement extends HTMLElement {
         }
 
         // find the element in the scene
-        const element = this.#sceneElement.querySelector(`[uid="${uid}"]`);
+        const element = this.sceneElement.querySelector(`[uid="${uid}"]`);
 
         if (!element) {
             console.error(

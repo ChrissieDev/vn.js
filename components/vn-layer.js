@@ -1,5 +1,5 @@
 /**
- * @file body-part.js
+ * @file vn-layer.js
  * Implements the VNBodyPartElement custom element.
  * Acts as a container for different state images (<img> elements) of a specific part of an actor.
  */
@@ -25,7 +25,7 @@ export default class VNBodyPartElement extends HTMLElement {
     }
 
     /**
-     * Gets the unique identifier for this body part.
+     * Gets the unique identifier for this vn-layer.
      * @returns {string | null}
      */
     get uid() {
@@ -33,7 +33,7 @@ export default class VNBodyPartElement extends HTMLElement {
     }
   
     /**
-     * Retrieves all image definitions (states) within this body part.
+     * Retrieves all image definitions (states) within this vn-layer.
      * @returns {NodeListOf<HTMLImageElement>} A NodeList of the direct <img> children with 'uid' attributes.
      */
     getImageDefinitions() {
@@ -60,4 +60,4 @@ export default class VNBodyPartElement extends HTMLElement {
     }
 }
 
-customElements.define('body-part', VNBodyPartElement);
+customElements.define('vn-layer', VNBodyPartElement);

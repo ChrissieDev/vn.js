@@ -1,55 +1,17 @@
+import Time from '../Time.js';
 import VNCommand from '../VNCommand.js';
 import VNCommandAnimate from './VNCommandAnimate.js';
 export default class VNCommandWait extends VNCommand {
     type = 'wait';
 
-    static parseTime(until = "0s") {
-        let timeString;
-        let ms = 0;
-
-        if (typeof until === "number") {
-            if (until < 0) {
-                throw new Error(`Invalid time format: ${until}`);
-            }
-            timeString = `${until}s`; // numbers are treated as seconds
-        } else if (typeof until === "string") {
-            timeString = until.trim().toLowerCase();
-        } else if (until instanceof Date) {
-            const now = new Date();
-            const diff = until.getTime() - now.getTime(); // Difference in milliseconds
-            if (diff < 0) {
-                throw new Error(`Invalid time format: ${until}`);
-            }
-            ms = diff; // Set the difference in milliseconds
-            return ms;
-        } else {
-            throw new Error(`Invalid time format: ${until}`);
-        }
-        
-        if (timeString.endsWith("ms")) {
-            ms = parseFloat(timeString.slice(0, -2));            
-        } else if (timeString.endsWith("s")) {
-            ms = parseFloat(timeString.slice(0, -1)) * 1000;
-        } else if (timeString.endsWith("m")) {
-            ms = parseFloat(timeString.slice(0, -1)) * 60 * 1000;
-        } else if (timeString.endsWith("h")) {
-            ms = parseFloat(timeString.slice(0, -1)) * 60 * 60 * 1000;
-        } else if (timeString.endsWith("d")) {
-            ms = parseFloat(timeString.slice(0, -1)) * 24 * 60 * 60 * 1000;
-        } else {
-            ms = parseFloat(timeString) * 1000; // Default to seconds if no unit is specified
-        }
-
-        return ms;
-    }
-
+    
     constructor(queue, until = "0s") {
         super(queue);
 
         console.log("API (VNCommandWait): until:", until);
         
         if (typeof until === "number" || until instanceof Date || typeof until === "string") {
-            this.until = VNCommandWait.parseTime(until);
+            this.until = Time.parse(until);
         } else if (typeof until === "function") {
             this.until = until(); // Call the function to get the time
         } else {

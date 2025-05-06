@@ -1,5 +1,8 @@
 import VNCommand from "../VNCommand.js";
 
+/**
+ * Command for introducing a new object into the scene.
+ */
 export default class VNCommandAddObject extends VNCommand {
     type = 'add';
     objectType = ''; // 'img', 'audio', 'vn-actor' etc.

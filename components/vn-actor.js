@@ -1,18 +1,18 @@
 /**
  * @file vn-actor.js
  * Implements the VNActorElement custom element.
- * Represents a character composed of multiple body parts, each with switchable states (images).
+ * Represents a character composed of multiple vn-layers, each with switchable states (images).
  * Instances dynamically add/replace only the *active* image for each part in their shadow DOM.
  * Attempts to automatically size based on largest part image (from definition) if no explicit size is set via style.
  * Scales relative to container via CSS (e.g., percentage height + aspect-ratio).
  */
-import "./body-part.js";
+import "./vn-layer.js";
 
 const DESIGN_HEIGHT = 1080;
 
 export default class VNActorElement extends HTMLElement {
     #shadow;
-    #bodyPartsData = new Map();
+    #vnLayersData = new Map();
     #activeState = new Map();
     #isDefinitionParsed = false;
     #isInstanceInitialized = false;
@@ -99,19 +99,19 @@ export default class VNActorElement extends HTMLElement {
                 }
 
                 
-                ::slotted(body-part) {
+                ::slotted(vn-layer) {
                     display: none !important;
                 }
             </style>
             <div class="actor-wrapper" part="wrapper">
                 <!-- Active images will be added here dynamically -->
             </div>
-            <slot></slot> <!-- Slot ONLY for body-part definitions -->
+            <slot></slot> <!-- Slot ONLY for vn-layer definitions -->
         `;
 
         this.#playerPromise = Promise.all([
             customElements.whenDefined("vn-player"),
-            customElements.whenDefined("body-part"),
+            customElements.whenDefined("vn-layer"),
         ]);
     }
 
@@ -150,7 +150,7 @@ export default class VNActorElement extends HTMLElement {
             this.#instanceObserver.disconnect();
             this.#instanceObserver = null;
         }
-        if (!this.closest("vn-assets")) {
+        if (!this.closest("vn-project")) {
             this.#isInstanceInitialized = false;
             this.#initializationPromise = null;
             this.#activeState.clear();
@@ -165,7 +165,7 @@ export default class VNActorElement extends HTMLElement {
                 this.getAttribute("uid") ||
                 this.getAttribute("name") ||
                 "anonymous";
-            const isInstance = !this.closest("vn-assets");
+            const isInstance = !this.closest("vn-project");
 
             if (name === "name") {
                 this.#name = newValue ?? "";
@@ -183,7 +183,7 @@ export default class VNActorElement extends HTMLElement {
 
     /** Sets up MutationObserver for instance &-attributes. */
     #setupInstanceObserver() {
-        if (this.closest("vn-assets") || this.#instanceObserver) return;
+        if (this.closest("vn-project") || this.#instanceObserver) return;
 
         const id =
             this.getAttribute("uid") ||
@@ -196,12 +196,12 @@ export default class VNActorElement extends HTMLElement {
                     mutation.type === "attributes" &&
                     mutation.attributeName.startsWith("&")
                 ) {
-                    const bodyPartUid = mutation.attributeName.substring(1);
+                    const vnLayerUid = mutation.attributeName.substring(1);
                     const newStateUid = this.getAttribute(
                         mutation.attributeName
                     );
                     if (newStateUid !== null && newStateUid !== undefined) {
-                        this.setState(bodyPartUid, newStateUid);
+                        this.setState(vnLayerUid, newStateUid);
                     } else {
                         console.warn(
                             `[INST ${id}] &-attribute ${mutation.attributeName} removed. State handling not implemented.`
@@ -214,7 +214,7 @@ export default class VNActorElement extends HTMLElement {
         this.#instanceObserver.observe(this, { attributes: true });
     }
 
-    /** Parses definition, calculates dimensions, caches body part defs. Returns promise. */
+    /** Parses definition, calculates dimensions, caches vn-layer defs. Returns promise. */
     #parseDefinition() {
         if (this.#parsePromise) return this.#parsePromise;
         const id =
@@ -236,13 +236,13 @@ export default class VNActorElement extends HTMLElement {
         this.#maxImageHeight = 0;
         this.#calculatedRelativeHeight = null;
 
-        const bodyPartDefs = this.querySelectorAll(":scope > body-part[uid]");
-        if (bodyPartDefs.length === 0) {
-            console.warn(`[DEF ${id}] NO <body-part> child elements found.`);
+        const vnLayerDefs = this.querySelectorAll(":scope > vn-layer[uid]");
+        if (vnLayerDefs.length === 0) {
+            console.warn(`[DEF ${id}] NO <vn-layer> child elements found.`);
         }
 
         const imagePromises = [];
-        for (const bpDef of bodyPartDefs) {
+        for (const bpDef of vnLayerDefs) {
             const bpUid = bpDef.uid;
             if (!bpUid || this.#definitionBodyPartDefs.has(bpUid)) continue;
 
@@ -372,7 +372,7 @@ export default class VNActorElement extends HTMLElement {
         this.style.width = "auto";
     }
 
-    /** Initializes an actor instance based on its definition in vn-assets. */
+    /** Initializes an actor instance based on its definition in vn-project. */
     async #initializeFromAssets() {
         if (this.#isInstanceInitialized) return;
         if (!this.isConnected) {
@@ -443,7 +443,7 @@ export default class VNActorElement extends HTMLElement {
                     this.#activeState.set(bpUid, stateUid);
                 } else {
                     console.warn(
-                        `[${instanceId}] Instance &-attribute "${attr.name}='${stateUid}'" is invalid for body part "${bpUid}". Using definition default or no state.`
+                        `[${instanceId}] Instance &-attribute "${attr.name}='${stateUid}'" is invalid for vn-layer "${bpUid}". Using definition default or no state.`
                     );
                 }
             }
@@ -468,8 +468,8 @@ export default class VNActorElement extends HTMLElement {
         console.log(`[${instanceId}] #initializeFromAssets: END (Success)`);
     }
 
-    /** Helper to create and add/replace an image element in the shadow DOM for a body part state. */
-    #addOrReplaceBodyPartImage(bodyPartUid, stateUid) {
+    /** Helper to create and add/replace an image element in the shadow DOM for a vn-layer state. */
+    #addOrReplaceBodyPartImage(vnLayerUid, stateUid) {
         const instanceId = `INST ${this.getAttribute("uid") || "anon"}`;
         const wrapper = this.#shadow.querySelector(".actor-wrapper");
         if (!wrapper) {
@@ -479,21 +479,21 @@ export default class VNActorElement extends HTMLElement {
 
         const player = this.closest("vn-player");
         const definition = player?.getAssetDefinition(this.getAttribute("uid"));
-        const bodyPartDefElement = definition
+        const vnLayerDefElement = definition
             ?.getDefinitionBodyPartDefs()
-            ?.get(bodyPartUid);
-        const imgDef = bodyPartDefElement?.getImageDefinition(stateUid);
+            ?.get(vnLayerUid);
+        const imgDef = vnLayerDefElement?.getImageDefinition(stateUid);
 
         if (!imgDef) {
             console.error(
-                `[${instanceId}] #addOrReplace: Image definition not found for ${bodyPartUid}/${stateUid}.`
+                `[${instanceId}] #addOrReplace: Image definition not found for ${vnLayerUid}/${stateUid}.`
             );
             const existingImg = wrapper.querySelector(
-                `img[data-body-part="${bodyPartUid}"]`
+                `img[data-vn-layer="${vnLayerUid}"]`
             );
             if (existingImg) {
                 console.warn(
-                    `[${instanceId}] #addOrReplace: Removing image for ${bodyPartUid} due to invalid new state ${stateUid}.`
+                    `[${instanceId}] #addOrReplace: Removing image for ${vnLayerUid} due to invalid new state ${stateUid}.`
                 );
                 existingImg.remove();
             }
@@ -503,9 +503,9 @@ export default class VNActorElement extends HTMLElement {
         const newImgInstance = document.createElement("img");
         const src = imgDef.getAttribute("src");
         newImgInstance.src = src;
-        newImgInstance.dataset.bodyPart = bodyPartUid;
+        newImgInstance.dataset.vnLayer = vnLayerUid;
         newImgInstance.dataset.state = stateUid;
-        newImgInstance.part = `${bodyPartUid}-${stateUid}`;
+        newImgInstance.part = `${vnLayerUid}-${stateUid}`;
 
         const zIndex =
             imgDef.style.zIndex || imgDef.getAttribute("z-index") || "auto";
@@ -527,7 +527,7 @@ export default class VNActorElement extends HTMLElement {
         newImgInstance.loading = "lazy";
 
         const existingImg = wrapper.querySelector(
-            `img[data-body-part="${bodyPartUid}"]`
+            `img[data-vn-layer="${vnLayerUid}"]`
         );
         if (existingImg) {
             existingImg.remove();
@@ -537,13 +537,13 @@ export default class VNActorElement extends HTMLElement {
         return true;
     }
 
-    /** Sets the active state for a body part (for instances: replaces image in shadow DOM). */
-    setState(bodyPartUid, stateUid) {
+    /** Sets the active state for a vn-layer (for instances: replaces image in shadow DOM). */
+    setState(vnLayerUid, stateUid) {
         const id =
             this.getAttribute("uid") ||
             this.getAttribute("name") ||
             "anonymous";
-        const isInstance = !this.closest("vn-assets");
+        const isInstance = !this.closest("vn-project");
         const logPrefix = isInstance ? `[INST ${id}]` : `[DEF ${id}]`;
 
         if (!isInstance) {
@@ -552,13 +552,13 @@ export default class VNActorElement extends HTMLElement {
                 return;
             }
 
-            const bpDef = this.#definitionBodyPartDefs.get(bodyPartUid);
+            const bpDef = this.#definitionBodyPartDefs.get(vnLayerUid);
             if (bpDef?.getImageDefinition(stateUid)) {
-                this.#activeState.set(bodyPartUid, stateUid);
-                this.setAttribute(`&${bodyPartUid}`, stateUid);
+                this.#activeState.set(vnLayerUid, stateUid);
+                this.setAttribute(`&${vnLayerUid}`, stateUid);
             } else {
                 console.warn(
-                    `${logPrefix} setState (Default): Invalid state "${stateUid}" for body part "${bodyPartUid}".`
+                    `${logPrefix} setState (Default): Invalid state "${stateUid}" for vn-layer "${vnLayerUid}".`
                 );
             }
             return;
@@ -568,33 +568,33 @@ export default class VNActorElement extends HTMLElement {
             .then(() => {
                 if (!this.#isInstanceInitialized) {
                     console.warn(
-                        `${logPrefix} setState: Instance failed to initialize. Ignoring ${bodyPartUid}=${stateUid}.`
+                        `${logPrefix} setState: Instance failed to initialize. Ignoring ${vnLayerUid}=${stateUid}.`
                     );
                     return;
                 }
 
-                const currentState = this.#activeState.get(bodyPartUid);
+                const currentState = this.#activeState.get(vnLayerUid);
                 if (currentState === stateUid) {
                     return;
                 }
 
                 const success = this.#addOrReplaceBodyPartImage(
-                    bodyPartUid,
+                    vnLayerUid,
                     stateUid
                 );
 
                 if (success) {
-                    this.#activeState.set(bodyPartUid, stateUid);
+                    this.#activeState.set(vnLayerUid, stateUid);
                 } else {
                     console.warn(
-                        `${logPrefix} setState: Failed to set state for ${bodyPartUid} to ${stateUid}.`
+                        `${logPrefix} setState: Failed to set state for ${vnLayerUid} to ${stateUid}.`
                     );
                     if (
                         !this.#shadow.querySelector(
-                            `.actor-wrapper img[data-body-part="${bodyPartUid}"]`
+                            `.actor-wrapper img[data-vn-layer="${vnLayerUid}"]`
                         )
                     ) {
-                        this.#activeState.delete(bodyPartUid);
+                        this.#activeState.delete(vnLayerUid);
                     }
                 }
             })
@@ -606,10 +606,10 @@ export default class VNActorElement extends HTMLElement {
             });
     }
 
-    getActiveState(bodyPartUid) {
-        if (!this.closest("vn-assets") && !this.#isInstanceInitialized) {
+    getActiveState(vnLayerUid) {
+        if (!this.closest("vn-project") && !this.#isInstanceInitialized) {
         }
-        return this.#activeState.get(bodyPartUid);
+        return this.#activeState.get(vnLayerUid);
     }
     getName() {
         return (
@@ -620,7 +620,7 @@ export default class VNActorElement extends HTMLElement {
         );
     }
     getDefaultActiveState() {
-        if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
+        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
             console.warn(
                 `[DEF ${this.id}] getDefaultActiveState: Definition not parsed yet.`
             );
@@ -628,9 +628,9 @@ export default class VNActorElement extends HTMLElement {
         return new Map(this.#activeState);
     }
 
-    /** Gets the map of <body-part> definition elements (relevant for definitions). */
+    /** Gets the map of <vn-layer> definition elements (relevant for definitions). */
     getDefinitionBodyPartDefs() {
-        if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
+        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
             console.warn(
                 `[DEF ${this.id}] getDefinitionBodyPartDefs: Definition not parsed yet.`
             );
@@ -639,13 +639,13 @@ export default class VNActorElement extends HTMLElement {
     }
 
     isParsed() {
-        return this.closest("vn-assets") !== null && this.#isDefinitionParsed;
+        return this.closest("vn-project") !== null && this.#isDefinitionParsed;
     }
     get isInitialized() {
-        return !this.closest("vn-assets") && this.#isInstanceInitialized;
+        return !this.closest("vn-project") && this.#isInstanceInitialized;
     }
     getMaxImageWidth() {
-        if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
+        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
             console.warn(
                 `[DEF ${this.id}] getMaxImageWidth: Definition not parsed yet.`
             );
@@ -653,7 +653,7 @@ export default class VNActorElement extends HTMLElement {
         return this.#maxImageWidth;
     }
     getMaxImageHeight() {
-        if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
+        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
             console.warn(
                 `[DEF ${this.id}] getMaxImageHeight: Definition not parsed yet.`
             );
@@ -661,7 +661,7 @@ export default class VNActorElement extends HTMLElement {
         return this.#maxImageHeight;
     }
     getCalculatedRelativeHeight() {
-        if (this.closest("vn-assets") && !this.#isDefinitionParsed) {
+        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
             console.warn(
                 `[DEF ${this.id}] getCalculatedRelativeHeight: Definition not parsed yet.`
             );
@@ -669,16 +669,16 @@ export default class VNActorElement extends HTMLElement {
         return this.#calculatedRelativeHeight;
     }
     ensureParsedAsync() {
-        if (!this.closest("vn-assets")) return Promise.resolve();
+        if (!this.closest("vn-project")) return Promise.resolve();
         return this.#parseDefinition();
     }
     ensureParsed() {
-        if (this.closest("vn-assets") && !this.#parsePromise) {
+        if (this.closest("vn-project") && !this.#parsePromise) {
             this.#parseDefinition();
         }
     }
     ensureInitialized() {
-        if (this.closest("vn-assets")) return Promise.resolve();
+        if (this.closest("vn-project")) return Promise.resolve();
         if (!this.#initializationPromise) {
             this.#initializationPromise = this.#initializeFromAssets();
             this.#initializationPromise.catch((error) => {
@@ -693,7 +693,7 @@ export default class VNActorElement extends HTMLElement {
     }
     async forceInitialize() {
         const uid = this.getAttribute("uid");
-        if (uid && !this.closest("vn-assets")) {
+        if (uid && !this.closest("vn-project")) {
             if (this.#isInstanceInitialized) {
                 return;
             }
