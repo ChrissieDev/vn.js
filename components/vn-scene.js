@@ -7,6 +7,7 @@
 import "./vn-actor.js";
 import VNTextboxElement from "./text-box.js";
 import VNPlayerElement from "./vn-player.js";
+import VNActorElement from "./vn-actor.js";
 
 /**
  * Helper function to convert RGB values to HSL.
@@ -886,6 +887,11 @@ export default class VNSceneElement extends HTMLElement {
             const removingCurrentAmbient =
                 element === this.#ambientSourceElement;
 
+            if (element instanceof VNActorElement) {
+                // player cleans up the context so the actor's global variable is removed
+                this.player.removeActor(element);
+            }
+
             this.removeChild(element);
 
             if (removingCurrentAmbient) {
@@ -895,7 +901,7 @@ export default class VNSceneElement extends HTMLElement {
             }
         } else if (element) {
             console.warn(
-                "VNScene.removeElement: Element is not a direct child or invalid.",
+                "VNScene.removeElement: Element not a child of the scene.",
                 element
             );
         } else {

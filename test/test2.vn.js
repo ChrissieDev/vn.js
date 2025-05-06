@@ -52,7 +52,9 @@ const scene = SCENE(
     // adding an <img> element from the project to the scene. 
     ADD.IMAGE(`classroom-day`),
 
-    // waiting for 4 seconds before executing the next command
+    // wait command to stall execution for a specified amount of time.
+    // if passing a number, it will be interpreted as seconds, NOT milliseconds.
+    // a string uses time units, example: '2s', '3h', '1m', '500ms'. you can combine them too, like '1h 30m 20s'.
     WAIT(4),
 
     // playing music defined in the project using its `uid`, just like any other asset. 

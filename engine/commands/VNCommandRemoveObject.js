@@ -2,10 +2,17 @@ import VNActorElement from "../../components/vn-actor.js";
 import VNCommand from "../VNCommand.js";
 
 export default class VNCommandRemoveObject extends VNCommand {
-    constructor({ player, uid, options = {} }) {
-        super({ player, uid, options });
+    type = "removeObject";
+
+    constructor(queue, objectType, uid, options = {}) {
+        super(queue);
+        this.objectType = objectType;
         this.uid = uid;
-        this.options = options;
+        this.options = options; 
+
+        if (!(typeof this.objectType === 'string') || !(typeof this.uid === "string")) {
+            throw new Error("VNCommandRemoveObject: Invalid arguments provided.");
+        }
     }
 
     execute() {
@@ -22,11 +29,9 @@ export default class VNCommandRemoveObject extends VNCommand {
             console.error(`VNCommandRemoveObject: Object with UID "${this.uid}" has no parent node.`);
             return true;
         }
-        // remove the function from the runtime context
-        if (obj instanceof VNActorElement) {
-            this.player.removeActor(obj.uid);
-        }
-        // Remove the object from the scene
-        obj.parentNode.removeChild(obj);
+
+        scene.removeElement(obj);
+
+        return true; // Continue to the next command
     }
 }

@@ -9,19 +9,19 @@ export default class VNCommandSay extends VNCommand {
      * @type {string | null}
      */
     actorUid = null;
-    
+
     /**
      * The name of the actor to display in the textbox.
      * @type {string}
      */
     actorName = null;
-    
+
     /**
      * The text to display in the textbox.
      * @type {string}
      */
     text = "";
-    
+
     /**
      * Whether the text should cause the text-box to display a speaker.
      */
@@ -60,10 +60,13 @@ export default class VNCommandSay extends VNCommand {
 
         const fragment = document.createDocumentFragment();
         const tempDiv = document.createElement("div");
+
         tempDiv.innerHTML = this.text;
+
         while (tempDiv.firstChild) {
             fragment.appendChild(tempDiv.firstChild);
         }
+        
         textbox.appendChild(fragment);
 
         textbox.title = this.isMonologue ? "" : this.actorName;
@@ -93,8 +96,7 @@ export default class VNCommandSay extends VNCommand {
         this.#textboxInstance = null;
     }
 
-    #handleProceed = (event) => {
-    };
+    #handleProceed = (event) => {};
 
     #handleDestroy = (event) => {
         this.#removeListeners();

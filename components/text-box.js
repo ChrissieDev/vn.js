@@ -578,7 +578,6 @@ export default class VNTextboxElement extends HTMLElement {
                 this.#currentCharIndex++;
 
                 let delay = this.charIntervals[char] || this.ms; // Get specific char delay
-                console.log(`VNTextboxElement: Appending "${char}" with delay "${delay}"`);
                 if (typeof delay === "string") {
                     let delayMs = 0;
                     let delayStringNumber = /^\d+$/.exec(delay);
@@ -590,7 +589,6 @@ export default class VNTextboxElement extends HTMLElement {
                         delayMs = Math.floor(parseFloat(delay) || 0);
                     } else if (delayStringPercent !== null) {
                         delayMs = Math.floor((parseFloat(delayStringPercent) / 100) * this.ms);
-                        console.log(`VNTextboxElement: Converted "${delay}" to ${delayMs}ms`);
                     }
 
                     if (delayMs < 0) {

@@ -23,6 +23,7 @@ export class VNCommandIf extends VNCommand {
 
         try {
             if (this.conditionFunc()) {
+                alert("Condition is true, executing true branch.");
                 branchToExecute = this.trueBranchQueue;
             } else {
                 branchToExecute = this.falseBranchQueue;

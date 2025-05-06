@@ -135,6 +135,27 @@ export default class VNPlayerElement extends HTMLElement {
         }
     }
 
+    removeActor(actor) {
+        if (actor instanceof VNActorElement) {
+            const uid = actor.getAttribute("uid");
+            const runtimeFunc = this.#actorFunctions.get(uid);
+            if (runtimeFunc) {
+                this.#actorFunctions.delete(uid);
+                delete this.#runtime[uid];
+            } else {
+                console.warn(
+                    `VNPlayerElement: removeActor() called with actor "${uid}" that does not exist in the runtime. How did this happen?`
+                );
+            }
+
+            actor.remove();
+        } else {
+            console.warn(
+                `VNPlayerElement: removeActor() called with non-actor element: ${actor}`
+            );
+        }
+    }
+
     async connectedCallback() {
         this.projectElement = this.querySelector("vn-project");
         this.sceneElement = this.querySelector("vn-scene");
@@ -216,7 +237,8 @@ export default class VNPlayerElement extends HTMLElement {
 
         const runtimeKeys = Object.keys(this.#runtime);
 
-        // Add a `const` declaration for each runtime function so the user doesn't have to write `this.<functionName>` for each function.
+        // Declare each runtime function so the user doesn't have to write `this.<functionName>` for each function.
+        // NEW: No longer using const so actor functions can be cleaned up and reassigned if re-added to the scene.
         const declarations = runtimeKeys
             .filter((key) => {
                 if (key.startsWith("_")) return false;
@@ -230,7 +252,7 @@ export default class VNPlayerElement extends HTMLElement {
                     typeof descriptor.set === "undefined"
                 );
             })
-            .map((key) => `const ${key} = this.${key};`)
+            .map((key) => `let ${key} = this["${key}"];`)
             .join("\n");
 
         const finalScriptBody =
@@ -492,6 +514,7 @@ export default class VNPlayerElement extends HTMLElement {
         this.#runtime.CHECK = this.#runtime_CHECK;
         this.#runtime.$ = this.#runtime_$;
         this.#runtime.ADD = this.#runtime_ADD;
+        this.#runtime.REMOVE = this.#runtime_REMOVE;
         this.#runtime.CREATE = this.#runtime_CREATE;
         this.#runtime.START = this.#runtime_START;
         this.#runtime.CHOICE = this.#runtime_CHOICE;
@@ -909,6 +932,41 @@ export default class VNPlayerElement extends HTMLElement {
             };
         },
     };
+
+    #runtime_REMOVE = {
+        IMAGE: (uid) => {
+            console.log(`API: REMOVE.IMAGE called: ${uid}`);
+            return {
+                type: "remove",
+                objectType: "img",
+                uid: uid,
+            };
+        },
+        AUDIO: (uid) => {
+            console.log(`API: REMOVE.AUDIO called: ${uid}`);
+            return {
+                type: "remove",
+                objectType: "audio",
+                uid: uid,
+            };
+        },
+        ACTOR: (uid) => {
+            console.log(`API: REMOVE.ACTOR called: ${uid}`);
+            return {
+                type: "remove",
+                objectType: "vn-actor",
+                uid: uid,
+            };
+        },
+        STYLE: (uid) => {
+            console.log(`API: REMOVE.STYLE called: ${uid}`);
+            return {
+                type: "remove",
+                objectType: "style",
+                uid: uid,
+            };
+        },
+    }
     
     /**
      * @todo Add the ability to create event listeners. (low priority, only added here so i remember)
