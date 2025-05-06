@@ -1,27 +1,20 @@
-/**
- * @file schoolDayScene.vn.js
- * @fileoverview
- * A VNScript scene depicting the start of a school day with Kacey.
- */
-
-// Reusable animation for actors fading in
-const actorFadeIn = ANIMATION(
+// Defining reusable animations
+const fadeIn = ANIMATION(
     [
-        { opacity: 0, transform: 'translateX(-30px)' }, // Start slightly off-screen and transparent
-        { opacity: 1, transform: 'translateX(0px)' }    // Fade in and slide into place
+        { opacity: 0, transform: 'translateX(-40px) scale(0.95)' }, // Start slightly off-screen, smaller and transparent
+        { opacity: 1, transform: 'translateX(0px) scale(1)' }    // Fade in, slide into place and scale up
     ],
     {
-        duration: 800,
+        duration: 700,
         easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // easeOutQuad
         fill: 'forwards'
     }
 );
 
-// Reusable animation for actors fading out (if needed later)
-const actorFadeOut = ANIMATION(
+const fadeOut = ANIMATION(
     [
-        { opacity: 1, transform: 'translateX(0px)' },
-        { opacity: 0, transform: 'translateX(30px)' }
+        { opacity: 1, transform: 'translateX(0px) scale(1)' },
+        { opacity: 0, transform: 'translateX(40px) scale(0.95)' } // Fade out, slide off-screen and scale down
     ],
     {
         duration: 500,
@@ -30,114 +23,174 @@ const actorFadeOut = ANIMATION(
     }
 );
 
-// Define the scene
-PLAY(SCENE(
-    // Setup the environment: background image and ambient music
+const subtleBounce = ANIMATION(
+    [
+        { transform: 'translateY(0px)' },
+        { transform: 'translateY(-5px)' },
+        { transform: 'translateY(0px)' }
+    ],
+    {
+        duration: 350,
+        easing: 'ease-in-out',
+        // iterations will be specified in the animate call if different from 1
+    }
+);
+
+const dramaticExitSweep = ANIMATION(
+    [
+        { opacity: 1, transform: 'translateX(0px) rotate(0deg) scale(1)' },
+        { opacity: 0.8, transform: 'translateX(150px) rotate(8deg) scale(1.05)' },
+        { opacity: 0, transform: 'translateX(600px) rotate(20deg) scale(1.1)' }
+    ],
+    {
+        duration: 1200,
+        easing: 'cubic-bezier(0.6, -0.28, 0.735, 0.045)', // easeInBack
+        fill: 'forwards'
+    }
+);
+
+const scene = SCENE(
+    // Set up the classroom background with a gentle fade-in
     ADD.IMAGE('classroom-day', {
-        style: `
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        `
+        style: 'opacity: 0; width: 100%; height: 100%; object-fit: cover;' // Initial state for fade-in
     }),
-    ADD.AUDIO('everyday', {
+    (async () => { // IIFE to animate the background
+        const bgImage = document.querySelector('img[src$="classroom-day"]'); // A bit fragile selector, assumes only one
+        if (bgImage) {
+            await bgImage.animate(
+                [{ opacity: 0 }, { opacity: 1 }],
+                { duration: 2000, easing: 'ease-in', fill: 'forwards' }
+            ).finished;
+        }
+    })(),
+
+    WAIT(1000), // Allow background to start fading in
+
+    ADD.AUDIO('everyday.mp3', {
         volume: 0.35,
         loop: true,
-        // autoplay is true by default
     }),
 
-    // Player character's initial thoughts before Kacey arrives
-    you
-    `Ugh, another thrilling day at Northwood High. The scent of floor wax and teenage angst is already intoxicating.`,
-    WAIT('0.5s'),
-    you
-    `At least Kacey will be here soon. She's a hurricane of chaos, but it's my kind of chaos.`,
-    WAIT('1s'),
-
-    // Kacey makes her entrance
+    // Add Kacey, initially off-screen or invisible, then animate her in
     ADD.ACTOR('kacey', {
-        style: `
-            opacity: 0;
-            /* Initial position can be adjusted if needed, e.g., for side entrances */
-            /* bottom: 0; left: 10%; */
-        `,
+        style: 'transform: translate(250px, 40px) scale(0.85); opacity: 0;', // Positioned to the right, slightly down, smaller
     }),
-    // Animate Kacey appearing on screen
-    kacey.animate(actorFadeIn, { wait: true }),
-
-    // Dialogue starts
-    kacey
-    `Oh. My. God. Could this classroom BE any more depressing? The color scheme is, like, an actual crime against fashion.`,
-
-    you
-    `Morning to you too, Kacey. And I think "institutional beige" is the technical term.`,
-
-    kacey
-    `Whatever. It's hideous. Seriously, if I have to stare at these walls all day, I'm going to, like, demand hazard pay.`,
-    kacey
-    `Anyway, did you finish that history assignment? Because I, like, *totally* forgot. Mr. Henderson is going to have a full-blown meltdown.`,
-
-    you
-    `Finished it last night. It wasn't that bad, just a lot of reading about dead guys.`,
-
-    kacey
-    `Ugh, reading. So archaic. Why can't they just make a TikTok about it?`,
-    kacey
-    `Speaking of which, you will NOT believe what Brittany wore yesterday. It was this, like, tragic ruffled top that looked like a confused flamingo. I almost died.`,
-
-    you
-    `I'm sure it wasn't *that* bad. Maybe she was trying a new style?`,
-
-    kacey
-    `Honey, there's "new style" and then there's "cry for help." That was definitely a full-on S.O.S.`,
-    kacey
-    `So, big plans after we escape this educational prison? Because we are *definitely* hitting up that new boutique downtown. I heard they have killer accessories, and your wardrobe could, like, use a little... sparkle.`,
-
-    // Player makes a choice
-    PICK(
-        "Kacey wants to go shopping. How do you respond?",
-
-        CHOICE("Agree immediately",
-            you
-            `"A new boutique? Say no more! My closet is practically begging for an intervention."`,
-            kacey
-            `"See? This is why you're my bestie! You just *get* it. We'll find you something so fierce, people will, like, actually notice you for the right reasons."`,
-            text
-            `Kacey claps her hands, already picturing the shopping spree.`,
-        ),
-
-        CHOICE("Express some hesitation",
-            you
-            `"Downtown on a school day? Sounds a bit ambitious, and probably expensive. My wallet's still recovering from last time."`,
-            kacey
-            `"Oh, don't be such a party pooper! It's called investing in yourself. And who knows, maybe we'll 'accidentally' bump into some cute guys."`,
-            kacey
-            `"Come on, it'll be fun! My treat for the first overpriced latte."`,
-            you
-            `"Okay, okay, you twisted my arm. But only one latte!"`,
-        ),
-
-        CHOICE("Suggest something else",
-            you
-            `"Actually, I was thinking maybe we could grab some food and then just chill? Maybe catch up on that show everyone's talking about?"`,
-            kacey
-            `"Chill? With all those new arrivals just waiting to be discovered? Are you, like, feeling okay? That's almost as tragic as Brittany's top."`,
-            kacey
-            `"But... okay, fine. Food first. Then *maybe* chilling. But if I get bored, we're bailing and going shopping anyway, deal?"`,
-            you
-            `"Deal. I'll brace myself for the inevitable."`,
-        )
-    ),
-
-    kacey
-    `Okay, well, try not to look too bored in Henderson's class. It, like, totally ruins my concentration when you sigh dramatically.`,
-    kacey
-    `Later, loser! Don't be late!`,
-
-    // Kacey could exit here if the scene continued with her leaving
-    // kacey.animate(actorFadeOut, { wait: true }),
-    // REMOVE.ACTOR('kacey'), // Or simply make her invisible if she stays in the background
 
     text
-    `The first bell shrills through the hallway, a signal that the day is truly beginning. Time to face the music... or, in this case, history class.`
-));
+    `The lecture hall is filled with the low murmur of the professor's voice, a sound that has become synonymous with "nap time" for most students.`,
+    `You doodle idly in your notebook, occasionally glancing at Kacey beside you. She looks like a powder keg with a very short, very Chanel-branded fuse.`,
+
+    kacey.animate(fadeIn, { wait: true }), // Kacey fades/slides in
+
+    kacey
+    `Okay, I am, like, literally one more PowerPoint slide away from a full-blown existential crisis.`,
+    `This history lecture is, like, older than the history it's talking about.`,
+    
+    kacey.animate(subtleBounce, { iterations: 3, duration: 300 }), // Kacey fidgets
+
+    kacey
+    `And this lighting? It's, like, totally washing out my complexion. This is a travesty.`,
+
+    you
+    `(<i>A Kacey-meltdown is imminent. Level: Mauve Alert.</i>)`,
+
+    PICK(
+        `Kacey turns to you, eyes wide with a desperate plea for entertainment. "What should we do?" her expression screams.`,
+
+        CHOICE(`"Starbucks run? My treat for enduring this."`,
+            you
+            `How about a strategic retreat to Starbucks? My treat. You look like you need a triple-shot-venti-something-complicated.`,
+
+            kacey
+            `OMG, do I? You, like, totally get me!`,
+            `Yes! A Venti Iced Caramel Macchiato with, like, extra extra caramel drizzle and, like, five pumps of vanilla. Stat!`,
+            `And we can, like, "accidentally" forget to come back. Whoops!`,
+
+            you
+            `"Accidentally," of course. Your definition of "accident" is always so... intentional.`,
+            `But okay, caffeine and truancy it is. Lead the way, Queen of Questionable Decisions.`,
+
+            kacey
+            `Don't mind if I do!`,
+            `Let's leave these, like, historical peasants to their ancient ramblings!`,
+
+            REMOVE.AUDIO('everyday.mp3'),
+            ADD.AUDIO('menacing.ogg', { volume: 0.25, loop: true }), // More upbeat, mischievous tune
+
+            kacey.animate(fadeOut, { wait: true }),
+            
+            text
+            `Kacey is already halfway out of her seat, her expensive bag slung over her shoulder.`,
+            `You sigh, grabbing your own stuff. Another Monday, another Kacey-led escape from academic tedium.`,
+            `At least there'll be good coffee.`
+        ),
+
+        CHOICE(`"Let's make our OWN history. Prank Professor Davies?"`,
+            you
+            `You know, if this lecture is so boring, maybe we should, like, make our own history.`,
+            `Professor Davies' office hours are next period, right? And he always leaves his door unlocked...`,
+
+            kacey
+            `...Are you suggesting what I think you're suggesting?`,
+            `Because if it involves, like, replacing all his pens with ones that write in glitter, or, like, covering his entire desk in sticky notes saying "History is, like, so fetch!" then I am SO in.`,
+            `You're, like, surprisingly devious sometimes. I approve.`,
+
+            you
+            `Glitter pens are a classic. But I was thinking bigger. Remember how he's, like, terrified of rubber ducks?`,
+
+            kacey
+            `OMG! The Great Rubber Duck Invasion of '24! It's, like, poetic!`,
+            `I have, like, at least three in my bag from that claw machine we conquered last week! And I think Tiffany has some...`,
+            
+            REMOVE.AUDIO('everyday.mp3'),
+            ADD.AUDIO('menacing.ogg', { volume: 0.4, loop: true }),
+
+            kacey
+            `Okay, new plan. We text Tiffany, coordinate a, like, multi-pronged duck assault on Davies' office.`,
+            `This is going to be LEGENDARY.`,
+
+            you
+            `Just try not to get us expelled... again. My parents are still recovering from the "mascot kidnapping" incident.`,
+
+            kacey
+            `Details, details. It's for the art, sweetie!`,
+            `Come on, General Duckington, our troops await!`,
+
+            kacey.animate(dramaticExitSweep, { wait: true }),
+            
+            text
+            `Kacey practically vibrates with excitement, already typing furiously on her phone as she sweeps out of the lecture hall.`,
+            `You can't help but grin. This is definitely going to be more interesting than learning about the Peloponnesian War. Probably.`
+        ),
+
+        CHOICE(`"Deep breaths, Kacey. Want to compare online shopping carts?"`,
+            you
+            `Okay, deep breaths, Kacey. Before you, like, spontaneously combust from boredom.`,
+            `Want to, like, discreetly compare our ASOS shopping carts? I found this amazing faux fur jacket...`,
+
+            kacey
+            `Shopping carts? Are you, like, serious right now?`,
+            `While ROME is BURNING? Or, like, whatever historical catastrophe Davies is droning on about?`,
+            
+            kacey.animate(subtleBounce, { iterations: 1, duration: 200 }), // A short, annoyed bounce
+
+            kacey
+            `But... okay, fine. But only because my cart is, like, definitely better than yours.`,
+            `I have these, like, knee-high snakeskin boots that are to DIE for.`,
+            `And if Davies calls on me, you're, like, totally answering for me. Deal?`,
+
+            you
+            `Deal. But if my faux fur jacket is better than your snakeskin boots, you owe me a smoothie.`,
+
+            kacey
+            `As if! But you're on. Just, like, try not to drool all over your phone when you see my selections.`,
+
+            text
+            `Kacey pulls out her diamond-encrusted phone, expertly navigating to her favorite shopping app under the cover of her textbook.`,
+            `You do the same, a small smile playing on your lips. Sometimes, the simplest distractions are the best.`,
+            `The threat of a Kacey-meltdown has been downgraded to Chartreuse. For now.`
+        )
+    )
+);
+
+PLAY(scene);

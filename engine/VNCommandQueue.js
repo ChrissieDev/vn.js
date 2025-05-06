@@ -20,8 +20,19 @@ import VNCommandWait from "./commands/VNCommandWait.js";
 export default class VNCommandQueue {
     i = 0;
     commands = [];
+    /**
+     * @type {VNPlayerElement}
+     */
     player = null;
+
+    /**
+     * @type {VNSceneElement}
+     */
     #scene = null;
+
+    /**
+     * @type {VNCommandQueue | null}
+     */
     parentQueue = null;
 
     /**
