@@ -79,26 +79,33 @@
                     <meta itemprop="date" content="2025-04-29" />
                     <meta itemprop="license" content="MIT" />
                     
-                    <!-- new: removed <vn-project>, assets are now defined directly instice <vn-project -->
+                    <!-- new: removed <vn-project>, assets are now defined directly instice <vn-project> -->
                     <vn-actor
                         uid="kacey"
                         name="Kacey"
                         inline-layer-order="face, pose"
-                        &face="neutral"
+                        &mouth="sulk"
+                        &eyes="scrutinize"
                         &pose="neutral"
                     >
-                        <!-- new: 'trigger' to support dynamically toggling actor images at runtime -->
+                            <!-- new: 'trigger' to support dynamically toggling actor images at runtime -->
                         <vn-layer uid="pose">
                             <img src="images/actors/kacey/pose-neutral.png" uid="neutral" trigger="<-<" />
                             <img src="images/actors/kacey/pose-crossed-arms.png" uid="crossed-arms" trigger="x-<" />
                         </vn-layer>
                         <vn-layer uid="eyes">
-                            <img src="images/actors/kacey/eyes-neutral.png" uid="neutral" trigger=":" />
-                            <img src="images/actors/kacey/eyes-^^.png" uid="happy" trigger="^^" />
-                            <img src="images/actors/kacey/eyes-scrutinize.png" uid="scrutinize" trigger="|:" />
-                            <img src="images/actors/kacey/eyes-silly.png" uid="silly" trigger="X" />
-                            <img src="images/actors/kacey/eyes-sad.png" uid="sad" trigger="<:" />
-                            <img src="images/actors/kacey/eyes-angry.png" uid="angry" trigger=">:" />
+                            <img src="images/actors/kacey/pose-neutral-eyes-neutral.png" uid="neutral" trigger=":" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-eyes-^^.png" uid="happy" trigger="^^" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-eyes-scrutinize.png" uid="scrutinize" trigger="):" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-eyes-silly.png" uid="silly" trigger="X" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-eyes-sad.png" uid="sad" trigger="<:" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-eyes-angry.png" uid="angry" trigger=">:" &pose="neutral" />
+                        </vn-layer>
+                        <vn-layer uid="mouth">
+                            <img src="images/actors/kacey/pose-neutral-mouth-neutral.png" uid="neutral" trigger="|" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-mouth-open.png" uid="open" trigger="D" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-mouth-sulk.png" uid="sulk" trigger="I" &pose="neutral" />
+                            <img src="images/actors/kacey/pose-neutral-mouth-silly.png" uid="silly" trigger="P" &pose="neutral" />
                         </vn-layer>
                     </vn-actor>
 
@@ -120,7 +127,12 @@
                     >
                         <vn-style>
                             :host {
-                                transform: scale(3.0) !important;
+                                :scope {
+                                    font-family: "Courier New", Courier, monospace;
+                                    font-weight: 400;
+                                    text-align: left;
+                                    text-shadow: 0px 0px 5px #000000aa;
+                                }
                             }
                         </vn-style>
                     </text-box>
@@ -141,7 +153,7 @@
                 </vn-project>
 
                 <vn-scene textbox="default" choices="choices-default">
-                    <vn-script src="./test2.vn.js"></vn-script>
+                    <vn-script src="./llm-test.vn.js"></vn-script>
                 </vn-scene>
             </vn-player>
         </div>

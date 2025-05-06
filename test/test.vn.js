@@ -6,8 +6,8 @@
 
 // You can define reusable animations using ANIMATION. It returns a VNAnimation which is a Web Animations API wrapper with some extra functionality.
 const transition = ANIMATION([
-    { transform: `translate(-2000px, 0px) scale(1.6)` },
-    { transform: `translate(0px, 0px) scale(1.6)` },
+    { opacity: 0 },
+    { opacity: 1 },
 ],
     {
         duration: 1000,
@@ -17,21 +17,39 @@ const transition = ANIMATION([
     }
 );
 
-let user = `Anon`;
-
 // Create a scene. Commands inside are automatically parsed by the engine into VNCommand objects.
-const testScene = SCENE(
+SCENE(
     
     // ADD is an object that contains all the command functions to add project-defined assets to the scene.
     // they must be defined inside the project's <vn-project> element with their default state.
     // Their element, with its default state, gets cloned and added to the scene as an instance.
-    ADD.ACTOR(`kacey`, {
-        style: `transform: translate(0px, 0px) scale(1);`, // applying styles to the element
+    ADD.ACTOR(`bob`, {
+        // applying styles to the actor instance for when they're initially added to the scene
+        style: `
+            opacity: 0;
+        `,
     }),
-    ADD.IMAGE(`back-of-classroom-day`),
+    ADD.IMAGE(`classroom-day`),
+
+    // this will animate the actor instance using the transition animation defined above. the second argument is optional and can take a 'wait' boolean value to stop the scene from executing the next command until the animation is finished.
+    bob.animate(transition, { wait: true }), 
+
+    // another way to delay execution. in this case it waits to 2 seconds after the previous command is executed
+    WAIT('2s'),
+
+    // play audio using an <audio> asset's `uid`. 'autoplay' is true by default.
     ADD.AUDIO(`everyday`, {
         volume: 0.3,
+        loop: true,
     }),
+
+    // Focuses the actor instance, setting the current speaker to its name specified in the project.
+    bob
+    `Hello, how are you?`,
+
+    // `you` is an invisible actor that exists in every scene by default
+    you
+    `Not bad, thanks!`,
 
     // This adds a speaker-less textbox to the scene with a list of choices.
     PICK(
@@ -71,28 +89,35 @@ const testScene = SCENE(
             )
         ),
 
-        "Footer text",
+        "Example footer text (not necessary, but just another example)",
     ),
 
     // running commands based on a condition ...
     IF(() => {
         return true;
     },
-        haruka
+        bob
         `expression is true!`,
         text
         `now exiting the if statement`,
     ),
     // ... or if the condition fails ...
     ELSE(
-        haruka
+        bob
         `expression is false!`,
         text
         `now exiting the else statement`,
     ),
-    you
-    `'You' is an invisible actor that exists in every scene. It is used to represent the player.`,
+
+    // executing arbitrary javascript code
+    $(() => {
+        console.log("Hello world!");
+    }),
+
+    // evaluate a string
+    $(`console.log("Hello world!")`),
+    
 );
 
-// signaling the player to run the scene
+// making the player to run the scene
 PLAY(testScene);

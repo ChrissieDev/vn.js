@@ -616,6 +616,7 @@ export default class VNPlayerElement extends HTMLElement {
                 actorUid: uid,
                 actorName: displayName || uid,
                 text: text.trim(),
+                isMonologue: false,
             };
         };
 
@@ -951,7 +952,7 @@ export default class VNPlayerElement extends HTMLElement {
             actorUid: "you",
             actorName: "You",
             text: text.trim(),
-            isMonologue: false,
+            isMonologue: true
         };
     };
 
