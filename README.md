@@ -6,7 +6,7 @@ Here's a list of functionality that is being worked on or planned for the future
 
 ### Components
 - [x] Textbox - Implemented as `<text-box>`, supports scrolling text and inline HTML. Multi-choice options use this component too.
-- [x] Character - Implemented as `<vn-actor>`. An actor is a character that can be displayed in the active scene. It has a list of `<vn-layer>` elements that can be used to display different images of the character. Each layer can have a different image visible at once.
+- [x] Character - Implemented as `<vn-actor>`. An actor is a character that can be displayed in the active scene. It has a list of `<vn-sprite>` elements that can be used to display different images of the character. Each layer can have a different image visible at once.
 - [x] Image - Uses `<img>` elements for images and `<video>` elements for videos. Can be used to display any image or video, but is primarily used for backgrounds/foregrounds.
 - [x] Music - Uses `<audio>` elements for music and sound effects.
 - [x] Scene - `<vn-scene>` displays actors, images, and plays music.

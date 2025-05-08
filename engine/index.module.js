@@ -8,7 +8,7 @@ import VNCommandQueue from "./VNCommandQueue.js";
 import VNCommandStart from "./commands/VNCommandStart.js";
 import VNCommandFocusActor from "./commands/VNCommandFocusActor.js";
 import VNCommandSay from "./commands/VNCommandSay.js";
-import VNCommandSetActorState from "./commands/VNCommandSetActorState.js";
+import VNCommandSetActorSprite from "./commands/VNCommandSetActorSprite.js";
 import VNCommandStyle from "./commands/VNCommandStyle.js";
 import VNCommandAddObject from "./commands/VNCommandAddObject.js";
 import { VNCommandIf, VNCommandElse } from "./commands/VNCommandIf.js";
@@ -21,7 +21,7 @@ export default {
     VNCommandStart,
     VNCommandFocusActor,
     VNCommandSay,
-    VNCommandSetActorState,
+    VNCommandSetActorSprite,
     VNCommandAddObject,
     VNCommandIf,
     VNCommandElse,

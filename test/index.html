@@ -86,30 +86,19 @@
                         inline-layer-order="face, pose"
                         &mouth="sulk"
                         &eyes="scrutinize"
-                        &pose="neutral"
+                        :pose="neutral"
                     >
-                            <!-- new: 'trigger' to support dynamically toggling actor images at runtime -->
-                        <vn-layer uid="pose">
-                            <img src="images/actors/kacey/pose-neutral.png" uid="neutral" trigger="<-<" />
-                            <img src="images/actors/kacey/pose-crossed-arms.png" uid="crossed-arms" trigger="x-<" />
-                        </vn-layer>
-                        <vn-layer uid="eyes">
-                            <img src="images/actors/kacey/pose-neutral-eyes-neutral.png" uid="neutral" trigger=":" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-eyes-^^.png" uid="happy" trigger="^^" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-eyes-scrutinize.png" uid="scrutinize" trigger="):" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-eyes-silly.png" uid="silly" trigger="X" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-eyes-sad.png" uid="sad" trigger="<:" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-eyes-angry.png" uid="angry" trigger=">:" &pose="neutral" />
-                        </vn-layer>
-                        <vn-layer uid="mouth">
-                            <img src="images/actors/kacey/pose-neutral-mouth-neutral.png" uid="neutral" trigger="|" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-mouth-open.png" uid="open" trigger="D" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-mouth-sulk.png" uid="sulk" trigger="I" &pose="neutral" />
-                            <img src="images/actors/kacey/pose-neutral-mouth-silly.png" uid="silly" trigger="P" &pose="neutral" />
-                        </vn-layer>
+                        <vn-sprite src="images/actors/kacey/pose-neutral.png" name="pose" variant="neutral" trigger="<-<" default active>
+                            <vn-sprite src="images/actors/kacey/pose-neutral-eyes-neutral.png" name="eyes" variant="neutral" trigger=":" default active></vn-sprite>
+                            <vn-sprite src="images/actors/kacey/pose-neutral-eyes-^^.png" name="eyes" variant="happy" trigger="^^"></vn-sprite>
+                            <vn-sprite src="images/actors/kacey/pose-neutral-eyes-scrutinize.png" name="eyes" variant="scrutinize" trigger="):"></vn-sprite>
+                            <vn-sprite src="images/actors/kacey/pose-neutral-eyes-silly.png" name="eyes" variant="silly" trigger="X"></vn-sprite>
+                            <vn-sprite src="images/actors/kacey/pose-neutral-eyes-sad.png" name="eyes" variant="sad" trigger="<:"></vn-sprite>
+                            <vn-sprite src="images/actors/kacey/pose-neutral-eyes-angry.png" name="eyes" variant="angry" trigger=">:"></vn-sprite>
+                        </vn-sprite>
                     </vn-actor>
 
-                    <img uid="classroom-day" src="images/backgrounds/_back_of_classroom_day.jpg" />
+                    <img uid="classroomDay" src="images/backgrounds/_back_of_classroom_day.jpg" />
                     <audio uid="everyday" src="audio/music/everyday.mp3"></audio>
 
                     <text-box
@@ -139,7 +128,7 @@
 
                     <text-box 
                         choices
-                        uid="choices-default"
+                        uid="choicesDefault"
                         ms="25"
                         font-size="24px"
                         color="#fff"
@@ -152,8 +141,8 @@
                     ></text-box>
                 </vn-project>
 
-                <vn-scene textbox="default" choices="choices-default">
-                    <vn-script src="./llm-test.vn.js"></vn-script>
+                <vn-scene textbox="default" choices="choicesDefault">
+                    <vn-script src="./sprite-test.vn.js"></vn-script>
                 </vn-scene>
             </vn-player>
         </div>

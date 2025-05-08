@@ -8,7 +8,7 @@
 import VNProjectElement from "./vn-project.js";
 import VNAssetsElement from "./vn-project.js";
 import VNActorElement from "./vn-actor.js";
-import VNLayerElement from "./vn-layer.js";
+import VNSpriteElement from "./vn-sprite.js";
 import VNSceneElement from "./vn-scene.js";
 import VNTextBoxElement from "./text-box.js";
 import VNScriptElement from "./vn-script.js";
@@ -20,7 +20,7 @@ export default {
     VNProjectElement,
     VNAssetsElement,
     VNActorElement,
-    VNLayerElement,
+    VNSpriteElement,
     VNSceneElement,
     VNTextBoxElement,
     VNScriptElement,

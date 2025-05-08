@@ -311,10 +311,6 @@ export default class VNTextboxElement extends HTMLElement {
                 this.#startDisplay();
             });
         }
-
-        this.#mutObserver.observe(this, {
-            attributes: true,
-        });
     }
 
     disconnectedCallback() {
@@ -424,43 +420,6 @@ export default class VNTextboxElement extends HTMLElement {
         this.#indicatorTimeoutId = null;
         this.#startDelayTimeoutId = null;
     }
-
-    // TODO: doesn't work - fix this to allow setting properties of certain objects like charIntervals
-    #trySetInternalObjectValueWithAttribute(target, attrName, value) {
-        const propMatch = attrName.match(/[\w+]\[(\w+_$)\]/)
-        console.log("\x1b[33mVNTextboxElement\x1b[0m: trySetInternalObjectValueWithAttribute", target, attrName, value);
-
-        // modification of internal variables
-        if (propMatch && propMatch.length == 2) {
-            alert("VNTextboxElement: Setting internal object value with attribute " + attrName + " to " + value);
-            const propName = propMatch[1];
-
-            if (Object.hasOwn(target, propName)) {
-                const targetValue = target[propName];
-                
-                // only allow number/string/boolean/null to be set
-                if (typeof targetValue === 'object' || typeof targetValue === 'function' || typeof targetValue === 'symbol' || typeof targetValue === 'bigint') {
-                    console.warn("An attempt to set a non-primitive value on", target, "with attribute", attrName, "was ignored. Value:", value);
-                    return; // Skip setting non-primitive values
-                }
-
-                target[propName] = value;
-                
-                return true; // Successfully set the value
-            }
-        }
-        
-        return false; // No property match found, return false
-    }
-
-    #mutObserver = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            if (mutation.type === "attributes") {
-                console.log("VNTextboxElement: Attribute changed:", mutation.attributeName, "to", mutation.target.getAttribute(mutation.attributeName));
-                this.#trySetInternalObjectValueWithAttribute(mutation.target, mutation.attributeName, mutation.target.getAttribute(mutation.attributeName));            
-            }
-        }
-    });
 
     #scrollToBottom() {
         
@@ -771,7 +730,6 @@ export default class VNTextboxElement extends HTMLElement {
      * @param {VNCommand} command - The command that created this textbox.
      */
     setCommandSource(command) {
-        console.log("VNTextboxElement.setCommandSource() called with:", command);
 
         if (!command && !(command instanceof VNCommand)) {
             throw new Error("VNTextboxElement: `command` is not of type VNCommand. VNTextboxElement.setCommandSource() failed:", command);
@@ -1007,9 +965,6 @@ export default class VNTextboxElement extends HTMLElement {
     #syncAllAttributes() {
         const nonObservedAttributes = this.getAttributeNames().filter(attr => !VNTextboxElement.observedAttributes.includes(attr));
         
-        for (const attr of nonObservedAttributes) {
-            this.#trySetInternalObjectValueWithAttribute(this, attr, this.getAttribute(attr));
-        }
 
         for (const attrName of VNTextboxElement.observedAttributes) {
             if (this.hasAttribute(attrName)) {

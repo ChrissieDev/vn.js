@@ -6,7 +6,7 @@ import { VNCommandIf, VNCommandElse } from "./commands/VNCommandIf.js";
 import VNCommandStart from "./commands/VNCommandStart.js";
 import VNCommandSay from "./commands/VNCommandSay.js";
 import VNCommandAddObject from "./commands/VNCommandAddObject.js";
-import VNCommandSetActorLayers from "./commands/VNCommandSetActorState.js";
+import VNCommandSetActorLayers from "./commands/VNCommandSetActorSprite.js";
 import VNCommandEvalJS from "./commands/VNCommandEvalJS.js";
 import VNCommandAnimate from "./commands/VNCommandAnimate.js";
 import VNCommandPick from "./commands/VNCommandPick.js";

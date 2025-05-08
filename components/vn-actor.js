@@ -1,19 +1,17 @@
 /**
  * @file vn-actor.js
  * Implements the VNActorElement custom element.
- * Represents a character composed of multiple vn-layers, each with switchable states (images).
+ * Represents a character composed of multiple vn-sprites, each with switchable states (images).
  * Instances dynamically add/replace only the *active* image for each part in their shadow DOM.
  * Attempts to automatically size based on largest part image (from definition) if no explicit size is set via style.
  * Scales relative to container via CSS (e.g., percentage height + aspect-ratio).
  */
-import "./vn-layer.js";
-import "./vn-layer.js";
+import "./vn-sprite.js";
 
 const DESIGN_HEIGHT = 1080;
 
 export default class VNActorElement extends HTMLElement {
     #shadow;
-    #vnLayersData = new Map();
     #activeState = new Map();
     #isDefinitionParsed = false;
     #isInstanceInitialized = false;
@@ -36,7 +34,6 @@ export default class VNActorElement extends HTMLElement {
         this.#shadow.innerHTML = `
             <style>
                 :host {
-                    
                     display: block;
                     position: absolute; 
                     overflow: visible; 
@@ -45,26 +42,11 @@ export default class VNActorElement extends HTMLElement {
                     will-change: transform, filter, width, height, aspect-ratio;
 
                     height: var(--vn-actor-calculated-height, 60%);
-
-
-                    width: auto; 
-                    
+                    width: auto;
                     aspect-ratio: var(--vn-actor-aspect-ratio, 1 / 1); 
 
                     
                 }
-
-                
-                 :host([style*="height"]) {
-                     
-                 }
-                 
-                 
-                 :host([style*="aspect-ratio"]) {
-                      
-                 }
-
-
                 .actor-wrapper {
                     position: relative; 
                     width: 100%;
@@ -75,47 +57,16 @@ export default class VNActorElement extends HTMLElement {
                 vn-style {
                     display: none;
                 }
-                
-                .actor-wrapper > img {
-                    
-                    position: absolute;
-                    bottom: 0; 
-                    left: 50%; 
-                    transform: translateX(-50%); 
-
-                    
-                    
-                    
-                    max-width: 100%;
-                    max-height: 100%;
-                    width: auto;
-                    height: auto;
-                    object-fit: contain; 
-                    object-position: bottom center; 
-
-                    transform-origin: bottom center; 
-                    pointer-events: none; 
-                    user-select: none;
-                    
-                }
-
-                
-                ::slotted(vn-layer) {
-                ::slotted(vn-layer) {
-                    display: none !important;
-                }
             </style>
             <div class="actor-wrapper" part="wrapper">
                 <!-- Active images will be added here dynamically -->
             </div>
-            <slot></slot> <!-- Slot ONLY for vn-layer definitions -->
-            <slot></slot> <!-- Slot ONLY for vn-layer definitions -->
+            <slot></slot>
         `;
 
         this.#playerPromise = Promise.all([
             customElements.whenDefined("vn-player"),
-            customElements.whenDefined("vn-layer"),
-            customElements.whenDefined("vn-layer"),
+            customElements.whenDefined("vn-sprite"),
         ]);
     }
 
@@ -154,12 +105,11 @@ export default class VNActorElement extends HTMLElement {
             this.#instanceObserver.disconnect();
             this.#instanceObserver = null;
         }
-        if (!this.closest("vn-project")) {
+        if (this.closest("vn-project")) {
             this.#isInstanceInitialized = false;
             this.#initializationPromise = null;
             this.#activeState.clear();
-            const wrapper = this.#shadow.querySelector(".actor-wrapper");
-            if (wrapper) wrapper.innerHTML = "";
+            this.style.display = 'none !important';
         }
     }
 
@@ -188,151 +138,11 @@ export default class VNActorElement extends HTMLElement {
     /** Sets up MutationObserver for instance &-attributes. */
     #setupInstanceObserver() {
         if (this.closest("vn-project") || this.#instanceObserver) return;
-
-        const id =
-            this.getAttribute("uid") ||
-            this.getAttribute("name") ||
-            "anonymous_inst";
-
-        this.#instanceObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (
-                    mutation.type === "attributes" &&
-                    mutation.attributeName.startsWith("&")
-                ) {
-                    const vnLayerUid = mutation.attributeName.substring(1);
-                    const newStateUid = this.getAttribute(
-                        mutation.attributeName
-                    );
-                    if (newStateUid !== null && newStateUid !== undefined) {
-                        this.setState(vnLayerUid, newStateUid);
-                    } else {
-                        console.warn(
-                            `[INST ${id}] &-attribute ${mutation.attributeName} removed. State handling not implemented.`
-                        );
-                    }
-                }
-            });
-        });
-
-        this.#instanceObserver.observe(this, { attributes: true });
     }
 
-    /** Parses definition, calculates dimensions, caches vn-layer defs. Returns promise. */
+    /** Parses definition, calculates dimensions, caches vn-sprite defs. Returns promise. */
     #parseDefinition() {
-        if (this.#parsePromise) return this.#parsePromise;
-        const id =
-            this.getAttribute("name") ||
-            this.getAttribute("uid") ||
-            "anonymous_def";
-        if (this.#isDefinitionParsed) return Promise.resolve();
-
-        let resolveParse, rejectParse;
-        this.#parsePromise = new Promise((resolve, reject) => {
-            resolveParse = resolve;
-            rejectParse = reject;
-        });
-
-        this.#name = this.getAttribute("name") || "";
-        this.#definitionBodyPartDefs.clear();
-        this.#activeState.clear();
-        this.#maxImageWidth = 0;
-        this.#maxImageHeight = 0;
-        this.#calculatedRelativeHeight = null;
-
-        const vnLayerDefs = this.querySelectorAll(":scope > vn-layer[uid]");
-        if (vnLayerDefs.length === 0) {
-            console.warn(`[DEF ${id}] NO <vn-layer> child elements found.`);
-        }
-
-        const imagePromises = [];
-        for (const bpDef of vnLayerDefs) {
-            const bpUid = bpDef.uid;
-            if (!bpUid || this.#definitionBodyPartDefs.has(bpUid)) continue;
-
-            this.#definitionBodyPartDefs.set(bpUid, bpDef);
-            const stateDefs = bpDef.getImageDefinitions();
-
-            for (const imgDef of stateDefs) {
-                const src = imgDef.getAttribute("src");
-                if (src) {
-                    const img = new Image();
-                    img.src = src;
-                    imagePromises.push(
-                        img
-                            .decode()
-                            .then(() => {
-                                this.#maxImageWidth = Math.max(
-                                    this.#maxImageWidth,
-                                    img.naturalWidth
-                                );
-                                this.#maxImageHeight = Math.max(
-                                    this.#maxImageHeight,
-                                    img.naturalHeight
-                                );
-                            })
-                            .catch((e) =>
-                                console.warn(
-                                    `[DEF ${id}] Failed decode image ${src}:`,
-                                    e
-                                )
-                            )
-                    );
-                }
-            }
-        }
-
-        for (const attr of this.attributes) {
-            if (attr.name.startsWith("&")) {
-                const bpUid = attr.name.substring(1);
-                const stateUid = attr.value;
-                const bpDef = this.#definitionBodyPartDefs.get(bpUid);
-                if (bpDef?.getImageDefinition(stateUid)) {
-                    this.#activeState.set(bpUid, stateUid);
-                } else {
-                }
-            }
-        }
-
-        Promise.allSettled(imagePromises)
-            .then(() => {
-                if (this.#maxImageWidth > 0 && this.#maxImageHeight > 0) {
-                    const aspectRatio =
-                        this.#maxImageWidth / this.#maxImageHeight;
-                    this.#calculatedRelativeHeight =
-                        (this.#maxImageHeight / DESIGN_HEIGHT) * 100;
-                    this.style.setProperty(
-                        "--vn-actor-aspect-ratio",
-                        aspectRatio
-                    );
-                    this.style.setProperty(
-                        "--vn-actor-calculated-height",
-                        `${this.#calculatedRelativeHeight.toFixed(2)}%`
-                    );
-                } else {
-                    console.warn(
-                        `[DEF ${id}] Could not determine dimensions. Using defaults.`
-                    );
-                    this.style.setProperty("--vn-actor-aspect-ratio", "1 / 1");
-                    this.style.setProperty(
-                        "--vn-actor-calculated-height",
-                        `60%`
-                    );
-                }
-                this.#isDefinitionParsed = true;
-                resolveParse();
-            })
-            .catch((error) => {
-                console.error(
-                    `[DEF ${id}] Error during image dimension calculation:`,
-                    error
-                );
-                this.#isDefinitionParsed = true;
-                this.style.setProperty("--vn-actor-aspect-ratio", "1 / 1");
-                this.style.setProperty("--vn-actor-calculated-height", `60%`);
-                rejectParse(error);
-            });
-
+        
         return this.#parsePromise;
     }
 
@@ -416,9 +226,6 @@ export default class VNActorElement extends HTMLElement {
             throw new Error(`Initialization failed: Definition parsing error.`);
         }
 
-        const definitionDefaults = definition.getDefaultActiveState();
-        const definitionBodyPartDefs = definition.getDefinitionBodyPartDefs();
-
         if (!this.hasAttribute("name") && definition.hasAttribute("name")) {
             this.setAttribute("name", definition.getAttribute("name"));
         }
@@ -437,22 +244,6 @@ export default class VNActorElement extends HTMLElement {
 
         this.#applyDynamicStyles();
 
-        this.#activeState = new Map(definitionDefaults);
-        for (const attr of this.attributes) {
-            if (attr.name.startsWith("&")) {
-                const bpUid = attr.name.substring(1);
-                const stateUid = attr.value;
-                const bpDef = definitionBodyPartDefs.get(bpUid);
-                if (bpDef?.getImageDefinition(stateUid)) {
-                    this.#activeState.set(bpUid, stateUid);
-                } else {
-                    console.warn(
-                        `[${instanceId}] Instance &-attribute "${attr.name}='${stateUid}'" is invalid for vn-layer "${bpUid}". Using definition default or no state.`
-                    );
-                }
-            }
-        }
-
         const wrapper = this.#shadow.querySelector(".actor-wrapper");
         if (!wrapper)
             throw new Error(
@@ -460,161 +251,10 @@ export default class VNActorElement extends HTMLElement {
             );
         wrapper.innerHTML = "";
 
-        for (const [bpUid, bpDefElement] of definitionBodyPartDefs.entries()) {
-            const activeStateUid = this.#activeState.get(bpUid);
-            if (activeStateUid) {
-                this.#addOrReplaceBodyPartImage(bpUid, activeStateUid);
-            } else {
-            }
-        }
-
         this.#isInstanceInitialized = true;
         console.log(`[${instanceId}] #initializeFromAssets: END (Success)`);
     }
 
-    /** Helper to create and add/replace an image element in the shadow DOM for a vn-layer state. */
-    #addOrReplaceBodyPartImage(vnLayerUid, stateUid) {
-        const instanceId = `INST ${this.getAttribute("uid") || "anon"}`;
-        const wrapper = this.#shadow.querySelector(".actor-wrapper");
-        if (!wrapper) {
-            console.error(`[${instanceId}] #addOrReplace: Wrapper not found!`);
-            return false;
-        }
-
-        const player = this.closest("vn-player");
-        const definition = player?.getAssetDefinition(this.getAttribute("uid"));
-        const vnLayerDefElement = definition
-            ?.getDefinitionBodyPartDefs()
-            ?.get(vnLayerUid);
-        const imgDef = vnLayerDefElement?.getImageDefinition(stateUid);
-
-        if (!imgDef) {
-            console.error(
-                `[${instanceId}] #addOrReplace: Image definition not found for ${vnLayerUid}/${stateUid}.`
-            );
-            const existingImg = wrapper.querySelector(
-                `img[data-vn-layer="${vnLayerUid}"]`
-            );
-            if (existingImg) {
-                console.warn(
-                    `[${instanceId}] #addOrReplace: Removing image for ${vnLayerUid} due to invalid new state ${stateUid}.`
-                );
-                existingImg.remove();
-            }
-            return false;
-        }
-
-        const newImgInstance = document.createElement("img");
-        const src = imgDef.getAttribute("src");
-        newImgInstance.src = src;
-        newImgInstance.dataset.vnLayer = vnLayerUid;
-        newImgInstance.dataset.state = stateUid;
-        newImgInstance.part = `${vnLayerUid}-${stateUid}`;
-
-        const zIndex =
-            imgDef.style.zIndex || imgDef.getAttribute("z-index") || "auto";
-        newImgInstance.style.zIndex = zIndex;
-        const imgStyle = imgDef.getAttribute("style") || "";
-        if (imgStyle) {
-            const currentInlineStyle =
-                newImgInstance.getAttribute("style") || "";
-            newImgInstance.setAttribute(
-                "style",
-                `${imgStyle}; ${currentInlineStyle}`
-            );
-        }
-
-        newImgInstance.onerror = () => {
-            console.error(`[${instanceId}] Failed load image: ${src}`);
-            newImgInstance.style.display = "none";
-        };
-        newImgInstance.loading = "lazy";
-
-        const existingImg = wrapper.querySelector(
-            `img[data-vn-layer="${vnLayerUid}"]`
-        );
-        if (existingImg) {
-            existingImg.remove();
-        }
-
-        wrapper.appendChild(newImgInstance);
-        return true;
-    }
-
-    /** Sets the active state for a vn-layer (for instances: replaces image in shadow DOM). */
-    setState(vnLayerUid, stateUid) {
-        const id =
-            this.getAttribute("uid") ||
-            this.getAttribute("name") ||
-            "anonymous";
-        const isInstance = !this.closest("vn-project");
-        const logPrefix = isInstance ? `[INST ${id}]` : `[DEF ${id}]`;
-
-        if (!isInstance) {
-            this.ensureParsed();
-            if (!this.#isDefinitionParsed) {
-                return;
-            }
-
-            const bpDef = this.#definitionBodyPartDefs.get(vnLayerUid);
-            if (bpDef?.getImageDefinition(stateUid)) {
-                this.#activeState.set(vnLayerUid, stateUid);
-                this.setAttribute(`&${vnLayerUid}`, stateUid);
-            } else {
-                console.warn(
-                    `${logPrefix} setState (Default): Invalid state "${stateUid}" for vn-layer "${vnLayerUid}".`
-                );
-            }
-            return;
-        }
-
-        this.ensureInitialized()
-            .then(() => {
-                if (!this.#isInstanceInitialized) {
-                    console.warn(
-                        `${logPrefix} setState: Instance failed to initialize. Ignoring ${vnLayerUid}=${stateUid}.`
-                    );
-                    return;
-                }
-
-                const currentState = this.#activeState.get(vnLayerUid);
-                if (currentState === stateUid) {
-                    return;
-                }
-
-                const success = this.#addOrReplaceBodyPartImage(
-                    vnLayerUid,
-                    stateUid
-                );
-
-                if (success) {
-                    this.#activeState.set(vnLayerUid, stateUid);
-                } else {
-                    console.warn(
-                        `${logPrefix} setState: Failed to set state for ${vnLayerUid} to ${stateUid}.`
-                    );
-                    if (
-                        !this.#shadow.querySelector(
-                            `.actor-wrapper img[data-vn-layer="${vnLayerUid}"]`
-                        )
-                    ) {
-                        this.#activeState.delete(vnLayerUid);
-                    }
-                }
-            })
-            .catch((error) => {
-                console.error(
-                    `${logPrefix} setState: Error during initialization wait:`,
-                    error
-                );
-            });
-    }
-
-    getActiveState(vnLayerUid) {
-        if (!this.closest("vn-project") && !this.#isInstanceInitialized) {
-        }
-        return this.#activeState.get(vnLayerUid);
-    }
     getName() {
         return (
             this.getAttribute("name") ||
@@ -622,25 +262,6 @@ export default class VNActorElement extends HTMLElement {
             this.getAttribute("uid") ||
             ""
         );
-    }
-    getDefaultActiveState() {
-        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
-            console.warn(
-                `[DEF ${this.id}] getDefaultActiveState: Definition not parsed yet.`
-            );
-        }
-        return new Map(this.#activeState);
-    }
-
-    /** Gets the map of <vn-layer> definition elements (relevant for definitions). */
-    /** Gets the map of <vn-layer> definition elements (relevant for definitions). */
-    getDefinitionBodyPartDefs() {
-        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
-            console.warn(
-                `[DEF ${this.id}] getDefinitionBodyPartDefs: Definition not parsed yet.`
-            );
-        }
-        return this.#definitionBodyPartDefs;
     }
 
     isParsed() {
