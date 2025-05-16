@@ -1,43 +1,43 @@
-# vn.js
-vn.js is an embeddable visual novel player written in JavaScript. It uses Web Components to create custom HTML elements that can be used to represent the state of both a scene and a project.
+# VN.js
 
-## Roadmap
-Here's a list of functionality that is being worked on or planned for the future.
+Hey, I'm making a visual novel player for the web called VN.js! It's a work in progress, but I think it'll be pretty cool when it's done. The state is stored in the DOM - because of this, state is alway serializable and may be saved to a file or even be streamed from a server. The player is designed for use in a web browser and leverages existing web technologies like HTML and CSS to allow for true customization of the visual novel experience, whether that is through custom themes (via CSS overrides) or bringing your own custom elements to the table (todo documentation on this).
 
-### Components
-- [x] Textbox - Implemented as `<text-box>`, supports scrolling text and inline HTML. Multi-choice options use this component too.
-- [x] Character - Implemented as `<vn-actor>`. An actor is a character that can be displayed in the active scene. It has a list of `<vn-sprite>` elements that can be used to display different images of the character. Each layer can have a different image visible at once.
-- [x] Image - Uses `<img>` elements for images and `<video>` elements for videos. Can be used to display any image or video, but is primarily used for backgrounds/foregrounds.
-- [x] Music - Uses `<audio>` elements for music and sound effects.
-- [x] Scene - `<vn-scene>` displays actors, images, and plays music.
-- [x] Script - Loads a scene script and passes it to the VN player. Only valid inside a `<vn-scene>` element.
-- [x] Project - `<vn-project>` holds the project data and assets. Every asset that can be spawned in a scene has a `uid` attribute. When an element of the same type with a `uid` is appended to the `<vn-scene>`, the scene looks up the asset in the project and copies its attributes to the new (instance) element. 
-- [ ] Style - `<vn-style>` injects CSS into the Shadow DOM its parent component so components can be styled without affecting the rest of the page. You can create your own textboxes, add effects to actors, etc.
-- [ ] Menu - A quick and dirty menu system with limited functionality for those who don't want to write their own.
+# How does it work?
 
-### Script API
-- [x] SCENE(...args) - Used to define a runnable script.
-- [x] PICK(...args) - Creates a multi-choice option dialog. It can be passed any arbitrary string or HTML element instead of a `CHOICE` command.
-- [x] CHOICE(string, ...args) - Represents a choice that can be made inside a `PICK` command. It renders a `<button>` element with the text passed into the first argument. The rest of the arguments are commands to run when the choice is made by the user.
-- [x] ADD.ACTOR(uid, options?) - Adds a new actor to the scene by referencing their unique ID from the project loaded by the VN player.
-- [x] ADD.IMAGE(uid, options?) - Adds a new image to the scene by referencing its unique ID from the project loaded by the VN player.
-- [x] ADD.AUDIO(uid, options?) - Adds a new audio to the scene by referencing its unique ID from the project loaded by the VN player.
-- [x] $(...args) - Run a function or evaluate an expression in the context of the scene. This is useful for running your own code exactly when the command is executed at runtime. It can also be used to select objects in the scene and set their properties using a jQuery-like syntax.
-- [x] ANIMATION(keyframes, options?, onFinish?) - Creates a reusable animation that can be used to animate any object in the scene using objectName.animate(animationName, options?). Returns a VNAnimation object that is a simple wrapper around the Web Animations API.
-- [x] WAIT(time) - Pauses the script for a specified amount of time. Accepts a number in seconds, or a time string (e.g. "1s", "1m", "1h").
-- [ ] RETURN(...) - Return from the current block of the script and continue in the parent block. Works the same as `return` in most programming languages.
-- [ ] RUN(scene) - Run a different scene from the current one.
-- [ ] LOAD(project) - Load a project from a file or URL.
-- [ ] SAVE(project) - Save the state of the player for later use with the current project. Returns a JSON object that can be saved to a file or sent to a server.
-- [ ] TRANSITION.IN(animation) - Set the transition animation going into the scene. Takes a VNAnimation + options or keyframes + options.
-- [ ] TRANSITION.OUT(animation) - Set the transition animation going out of the scene. Takes a VNAnimation + options or keyframes + options.
+We have a <vn-player> element which contains a <vn-project> and a <vn-scene> respectively.
 
-### Visual Editor
-(Not started)
-
-## Testing
-1. Clone the repository
-```sh
-git clone https://github.com/mkgiga/vn.js
+```html
+<vn-player>
+    <!-- The <vn-project> is invisible and contains all the assets for the VN. -->
+    <vn-project>
+        <img uid="background" src="assets/background.png" />
+    </vn-project>
+    
+    <!-- Elements inside <vn-scene> reference project assets using their `uid` attribute. -->
+    <vn-scene>
+        <img uid="background">
+    </vn-scene>
+</vn-player>
 ```
-2. Serve the HTML file `/test/index.html` using something like VS Code's [Live Preview]("https://marketplace.visualstudio.com/items?itemName=ms-vscode.live-server") or similar and open it in your browser.
+
+#### \<vn-project\>
+An invisible element that contains copies of all instantiable assets used in the visual novel.
+
+#### \<vn-scene\>
+Any element added to this component with a `uid` attribute will be synced with its corresponding asset in the project. In the example above, the `background` image from `<vn-project>` becomes copied to the `<vn-scene>` using just its `uid` attribute.
+
+# Structure
+
+`/components/vn-player.js` is the main component that gets the wheels turning. It defines an internal API for scene scripts. When a \<vn-script\> is added to the scene, global functions are copied from `VNPlayer.#runtimeAPI` -> `VNPlayer.#runtime`, which is the context which the script runs in. Here is a small example of how scripts are run:
+
+```javascript
+START(
+    bob
+    `Hello, world! Notice how we don't need commas between arguments?`
+    `It's because we're chaining string template literal function calls!`,
+
+    bob
+    `Also, the API severely abuses variadic arguments for everything
+    that results in an array of commands to be executed at runtime.`
+)
+```

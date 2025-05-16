@@ -1,123 +1,86 @@
 /**
- * @file documentation.vn.js
- * @fileoverview
- * A documented, valid VNScript to be loaded with <vn-script> inside <vn-scene>.
+ * @file test/test.vn.js
+ * @description A test scene to demonstrate the vn.js engine.
  */
-
-// You can define reusable animations using ANIMATION. It returns a VNAnimation which is a Web Animations API wrapper with some extra functionality.
-const transition = ANIMATION([
-    { opacity: 0 },
-    { opacity: 1 },
-],
-    {
-        duration: 1000,
-        // quadratic ease-out function
-        easing: `cubic-bezier(0.25, 0.1, 0.25, 1)`,
-        fill: `forwards`,
+const style = `
+<style>
+    [blue] {
+        color: lightblue;
     }
-);
 
-// Create a scene. Commands inside are automatically parsed by the engine into VNCommand objects.
-SCENE(
+    [glow] {
+        color: #fff; /* Color of the text itself */
+        background-color: transparent; /* Optional: Dark background to see the glow better */
+        padding: 10px; /* Optional: Just for better display */
+        font-size: 24px; /* Optional: Make text bigger */
+        text-shadow:
+            0 0 5px #fff,
+            0 0 10px #fff,
+            0 0 15px #fff,
+            0 0 20px #0ff,
+            0 0 30px #0ff,
+            0 0 40px #0ff;
+    }
+</style>
+`;
+
+document.head.insertAdjacentHTML("beforeend", style);
+
+// Running a scene.
+START(
+    ADD('kacey'),
+    ADD('classroom-front-day'),
     
-    // ADD is an object that contains all the command functions to add project-defined assets to the scene.
-    // they must be defined inside the project's <vn-project> element with their default state.
-    // Their element, with its default state, gets cloned and added to the scene as an instance.
-    ADD.ACTOR(`bob`, {
-        // applying styles to the actor instance for when they're initially added to the scene
-        style: `
-            opacity: 0;
-        `,
-    }),
-    ADD.IMAGE(`classroom-day`),
+    FADE_IN("2s"),
+    WAIT('500ms'),
 
-    // this will animate the actor instance using the transition animation defined above. the second argument is optional and can take a 'wait' boolean value to stop the scene from executing the next command until the animation is finished.
-    bob.animate(transition, { wait: true }), 
-
-    // another way to delay execution. in this case it waits to 2 seconds after the previous command is executed
-    WAIT('2s'),
-
-    // play audio using an <audio> asset's `uid`. 'autoplay' is true by default.
-    ADD.AUDIO(`everyday`, {
-        volume: 0.3,
-        loop: true,
-    }),
-
-    // Focuses the actor instance, setting the current speaker to its name specified in the project.
-    bob
-    `Hello, how are you?`,
-
-    // `you` is an invisible actor that exists in every scene by default
-    you
-    `Not bad, thanks!`,
-
-    // This adds a speaker-less textbox to the scene with a list of choices.
-    PICK(
-        "What do you want to say?", // Text is also okay if you want a header.
-
-        // CHOICE adds a button to the list. The first argument is the button text, 
-        // and the remaining arguments are the list commands to execute when the user chooses this option.
-        CHOICE("Choice A",
-            text
-            `You picked choice A!`,
-            `This is another block of commands that will be executed if the user picks this choice.`,
-            `Once the end of the list of commands is reached, 
-            the player returns to the previous context and continues executing commands from there.`,
-        ),
-
-        // You can put text between choices too.
-        "<b>HTML is also supported!</b>",
-
-        CHOICE("Choice B",
-            text
-            `You picked choice B!`,
-            `(see above for details)`,
-            PICK(
-                CHOICE("Choice B-1",
-                    text
-                    `You picked choice B-1!`,
-                ),
-                CHOICE("Choice B-2",
-                    text
-                    `You picked choice B-2!`,
-                ),
-                CHOICE("Choice B-3",
-                    text
-                    `You picked choice B-3!`,
-                ),
-
-            )
-        ),
-
-        "Example footer text (not necessary, but just another example)",
-    ),
-
-    // running commands based on a condition ...
-    IF(() => {
-        return true;
-    },
-        bob
-        `expression is true!`,
-        text
-        `now exiting the if statement`,
-    ),
-    // ... or if the condition fails ...
-    ELSE(
-        bob
-        `expression is false!`,
-        text
-        `now exiting the else statement`,
-    ),
-
-    // executing arbitrary javascript code
-    $(() => {
-        console.log("Hello world!");
-    }),
-
-    // evaluate a string
-    $(`console.log("Hello world!")`),
+    // Plays <audio> using an UID, and optionally pass in options.
+    PLAY("everyday", { volume: 0.3 }),
     
-);
 
-// making the player to run the scene
-PLAY(testScene);
+    // Character dialogue using the character's UID as defined in the project.
+    kacey 
+    `This class is so lame. I wish I was at home playing <i blue>The Sims 4</i> all fucking day.`,
+
+    Mysterious_Figure
+    `Hello, Kacey.`,
+
+    kacey
+    `O M F GEE! Who are you!? And what are you doing inside my head?`,
+
+    Mysterious_Figure
+    `I am the one who will guide you through this world.`,
+
+    kacey
+    `Guide me? Like, through what? Trig?`,
+
+    Mysterious_Figure
+    `You do not understand. You are in great danger, Kacey.`,
+
+    kacey
+    `Yeah, I know. I'm totally failing trig.`,
+
+    Mysterious_Figure
+    `No, I mean you are in danger of losing your life.`,
+
+    "Kacey whips her head around, slinging her long, blonde hair over her shoulder. She clicks her tongue and rolls her eyes.",
+
+    kacey
+    `Actually, you're the one in danger. I have a 4.0 GPA and a 3.8 SAT score. I could get into any college I want. I could even get into Harvard.`,
+
+    Mysterious_Figure
+    `You have to get out of here, Kacey. You have to leave this place.`,
+
+    kacey
+    `Guess what? YOU need to get the hell out of my head! I haven't had my morning starbs yet,
+    and I'm not in the mood for your creepy esper bullshit. I have a trig test to study for.`,
+
+    Mysterious_Figure
+    `Kacey... you are not going to pass that test... Please listen to me-`,
+
+    kacey
+    `Ex-CUSE ME!? Are you fucking kidding me? That's it! I'm blocking your spirit energy right now!
+    This morning's horoscope said that <i glow>my chakras</i> are a-fucking-ligned and I am NOT going to let you make this day any worse!`,
+    
+    FADE_OUT("2s"),
+)

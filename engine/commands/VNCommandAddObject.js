@@ -1,81 +1,125 @@
-import VNCommand from "../VNCommand.js";
+import VNObject from "../../components/vn-object.js";
+import { Log } from "../../utils/log.js";
+import { VNCommand } from "../VNCommand.js";
 
 /**
- * Command for introducing a new object into the scene.
+ * Represents a command to remove an object from the scene.
  */
 export default class VNCommandAddObject extends VNCommand {
-    type = 'add';
-    objectType = ''; // 'img', 'audio', 'vn-actor' etc.
-    uid = '';
+    type = "addObject";
+
+    /**
+     * @type {string | import("../../components/vn-object.js").default | HTMLElement}
+     */
+    object = undefined;
+
+    /**
+     * Overrides to apply to the object instance.
+     * @type {object}
+     */
     options = {};
- 
-    constructor(queue, objectType, uid, options = {}) {
+
+    constructor(queue, object, options = {}) {
         super(queue);
-        this.objectType = objectType;
-        this.uid = uid;
         this.options = options;
+        this.object = object;
     }
 
-    execute() {
-        console.log(`Executing ADD ${this.objectType}: ${this.uid}`);
-        const player = this.player;
-        const scene = this.scene;
+    resolveObject(object) {
+        const player = this.queue.player;
 
-        if (!player || !scene) {
-            console.error(`ADD ${this.objectType}: Cannot execute - missing player or scene reference.`);
-            return true; // Skip command if context is missing
-        }
+        if (object instanceof VNObject || object instanceof Element) {
+            return object;
+        } else if (typeof object === "string") {
+            const uid = object.trim();
+            let targetObject = player.getSceneObject(uid);
 
-        const definition = player.getAssetDefinition(this.uid);
-        if (!definition) {
-            console.error(`ADD ${this.objectType}: Asset definition not found for UID "${this.uid}".`);
-            return true; // Skip if definition missing
-        }
-
-        // --- Check if an element with this UID already exists in the scene ---
-        // Query direct children of the scene element only
-        const existingElement = scene.querySelector(`:scope > [uid="${this.uid}"]`);
-        if (existingElement) {
-             console.warn(`ADD ${this.objectType}: Element with UID "${this.uid}" already exists in the scene. Replacing it.`);
-             scene.removeElement(existingElement); // Use scene's method for safe removal
-        }
-
-        // console.log(`ADD ${this.objectType}: Cloning definition for ${this.uid}`);
-        // Clone the definition node. Deep clone is generally safer.
-        const instance = definition.cloneNode(true);
-
-        // Ensure the instance has the UID attribute (might be stripped during cloning sometimes?)
-        instance.setAttribute('uid', this.uid);
-
-        // Apply command-specific options (e.g., style, attributes) onto the cloned instance
-        if (this.options) {
-            for (const [key, value] of Object.entries(this.options)) {
-                if (key === 'style' && typeof value === 'string') {
-                    // Append styles, respecting existing styles from definition/clone
-                    instance.style.cssText += `; ${value}`;
-                } else if (key === 'class' && typeof value === 'string') {
-                    // Add classes from options
-                    value.split(' ').forEach(cls => cls && instance.classList.add(cls));
-                } else if (typeof value === 'boolean') {
-                    // Toggle boolean attributes based on option value
-                    instance.toggleAttribute(key, value);
-                } else if (value !== null && value !== undefined) {
-                    // Set other attributes
-                    instance.setAttribute(key, value.toString());
+            // if it doesn't exist in the scene, clone it from the project.
+            if (!targetObject) {
+                targetObject = player.cloneObjectDefinition(uid);
+                targetObject.setAttribute("uid", uid);
+                targetObject.setAttribute("cloned", "");
+                
+                // only set the name if it wasn't set before
+                if (targetObject.getAttribute("name") === null) {
+                    targetObject.setAttribute("name", uid);
                 }
+            } else {
+                // it already exists in the scene... we can't add it again.
+                Log.color("#ff6666")`[VNCommandAddObject] Object ${object} already exists in the scene.`;
+                return null;
+            }
+
+            return targetObject;
+
+        } else if (typeof object === "function") {
+            // actorFunction resolved by VNPlayer.createActorInterface (caught by the proxy when referencing an undefined property in the global context of the scene)
+            const uid = object?.metadata?.uid;
+            
+            if (uid === null || uid === undefined) {
+                throw new Error("Cannot add object: UID is null or undefined. What kind of function was passed into the VNCommandAddObject constructor?");
+            }
+            
+            let targetObject = player.getSceneObject(uid);
+
+            // doesn't exist in the scene. clone it from the project.
+            if (!targetObject) {
+                targetObject = player.cloneObjectDefinition(uid);
+                targetObject.setAttribute("uid", uid);
+                targetObject.setAttribute("cloned", "");
+                // only set the name if it wasn't set before
+                if (targetObject.getAttribute("name") === null) {
+                    targetObject.setAttribute("name", uid);
+                }
+
+                return targetObject;
+            } else {
+                // it already exists in the scene... we can't add it again.
+                Log.color("#ff6666")`[VNCommandAddObject] Object ${object} already exists in the scene.`;
+                return null;
             }
         }
+    }
 
-        // Add the configured instance to the scene using the scene's method
-        // scene.addElement handles slotting and triggers observer for configuration/initialization
-        // console.log(`ADD ${this.objectType}: Adding instance ${this.uid} to scene.`);
-        scene.addElement(instance);
+    async execute() {
+        // resolve object at runtime
+        const object = this.resolveObject(this.object);
+        
+        if (!object) {
+            Log.color("#ff6666")`[VNCommandAddObject] Object ${this.object} not found.`;
+            return new Promise((resolve) => {
+                resolve(false);
+            });
+        }
 
-        // Actor/Textbox/etc initialization is now handled within the scene's
-        // #processChildrenForUIDs method triggered by the MutationObserver
-        // or the element's own connectedCallback/ensureInitialized.
-        // No explicit call to forceInitialize or similar needed here.
+        const options = this.options;
 
-        return true; // ADD commands should complete immediately
+        // anti-tampering measure
+        const nuhUh = ["uid", "cloned"];
+        for (const prop of nuhUh) {
+            delete options[prop];
+        }
+
+        // set the properties of the object
+        for (const [key, value] of Object.entries(options)) {
+            if (key === 'style' && typeof value === 'object') {
+                for (const [styleKey, styleValue] of Object.entries(value)) {
+                    object.style[styleKey] = styleValue;
+                }
+
+                continue;
+            }
+            
+            object.setAttribute(key, value);
+        }
+
+        // no need to wait for the object to be added to the scene because it happens synchronously
+        return new Promise((resolve) => {
+            Log.color("lightgreen")`[VNCommandAddObject] Adding object ${object} to the scene.`;
+            console.log(object);
+            this.queue.player.scene.appendChild(object);
+            // resolve the promise immediately
+            resolve();
+        });
     }
 }

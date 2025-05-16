@@ -1,73 +1,69 @@
-import VNPlayerElement from "./vn-player.js";
-import VNPlayerScene from "./vn-scene.js";
+import { Log } from "../utils/log.js";
 
-export default class VNScriptElement extends HTMLElement {
-    
-    /**
-     * Reference to the running VNPlayerScene instance.
-     * @type {VNPlayerScene}
-     */
-    scene = null;
-
+export default class VNScript extends HTMLElement {
     constructor() {
         super();
     }
 
     static get observedAttributes() {
-        return ["src"];
+        return ["src", "href"];
     }
   
     /**
      * Reference to the VNPlayer instance.
-     * @type {VNPlayerElement}
+     * @type {VNPlayer}
      */
     get player() {
         return this.scene?.player;
     }
 
     connectedCallback() {
-        console.log("VNScriptElement: connectedCallback called.");
-        this.scene = this.closest("vn-scene");
+        Log.color("lightgreen").italic()`[${this}] attached to the DOM.`;
 
-        if (!(this.scene instanceof VNPlayerScene)) {
-            throw new Error("VNScriptElement must be a child of VNSceneElement.");
+        /**
+         * @type {import("./vn-player.js").default}
+         */
+        const player = this.closest("vn-player");
+
+        if (player === null) {
+            Log.color("red") `[${this}] <vn-script> must be a descendant of <vn-player>.` `Removing...`;
+            this.remove(); 
         }
 
-        this.#fetchScript(this.getAttribute("src")).then((script) => {
-            const text = script.trim();
-            if (text.length === 0) {
-                console.warn("VNScriptElement: Script is empty.");
-            }
+        const src = this.getAttribute("src") || this.getAttribute("href");
+        
+        if (src !== null) {
+            this.#fetchScript(src).then(async (result) => {
+                const text = await result.text();
+                
+                if (!text) {
+                    Log.color("red")`[${this}] Failed to load script: ${src}`;
+                    this.remove();
+                    return;
+                }
 
-            this.player.runScript(text);
-        }).catch((error) => {
-            console.error("Failed to fetch script:", error);
-            this.player.dispatchEvent(new VNScriptErrorEvent("vn-script-error", {
-                detail: { error, scriptUrl: this.getAttribute("src") }
-            }));
-        });
+                Log.color("lightgreen").italic()`[${this}] Script loaded successfully.`;
+                player.runScene(text);
+            });  
+        }
     }
 
-    async #fetchScript(url) {
-        const response = await fetch(url);
+    async #fetchScript(src) {
+        Log.color("lightgreen").italic()`[${this}] loading script from ${src}.`;
 
+        const response = await fetch(src);
+        
         if (!response.ok) {
-            throw new Error(`Failed to fetch script: ${response.statusText}`);
+            Log.color("red")`[${this}] Failed to fetch script: ${src}`;
+            this.remove();
+            return;
         }
 
-        console.log(`VNScriptElement: Fetched script from ${url}`);
+        return response;
+    }
 
-        const text = await response.text();
-
-        return text;
+    [Symbol.toStringTag]() {
+        return "VNScript";
     }
 }
-
-class VNScriptErrorEvent extends CustomEvent {
-    constructor(type, options) {
-        super(type, options);
-        this.detail = options.detail || null;
-    }
-}
-
-customElements.define("vn-script", VNScriptElement);
+customElements.define("vn-script", VNScript);

@@ -1,74 +1,52 @@
-/**
- * @file vn-project.js
- * Implements the VNProjectElement custom element.
- * Contains project metadata and the <vn-project> definitions.
- */
-import "./vn-project.js";
+import { Log } from "../utils/log.js";
 
-export default class VNProjectElement extends HTMLElement {
-    #metadata = {};
-
+export default class VNProject extends HTMLElement {
     constructor() {
         super();
-        this.attachShadow({ mode: "open" });
+        this.attachShadow({ mode: 'open' });
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    & {
-                        display: none !important;
-                    }
+                    display: none;
                 }
             </style>
             <slot></slot>
         `;
     }
 
-    connectedCallback() {
-        this.#parseMetadata();
+    /**
+     * VNProject is a child of vn-player.
+     */
+    get player() {
+        return this.closest("vn-player");
     }
 
-    disconnectedCallback() {
-        this.#metadata = {};
-    }
-  
-    #parseMetadata() {
-        const metaTags = this.querySelectorAll("meta[itemprop]");
-        this.#metadata = {};
-        metaTags.forEach((tag) => {
-            const key = tag.getAttribute("itemprop");
-            const value = tag.getAttribute("content");
-            if (key && value) {
-                this.#metadata[key] = value;
-            }
-        });
+    getObjectDefinition(uid) {
+        const object = this.querySelector(`& > [uid="${uid}"]`);
+
+        if (object) {
+            return object;
+        } else {
+            console.warn(`VNProject: Object with uid ${uid} not found.`);
+            return null;
+        }
     }
 
     /**
-     * Retrieves the parsed project metadata.
-     * @returns {object} An object containing the project metadata (e.g., { name: '...', description: '...' }).
+     * Looks for an element with the given uid in the project and returns a clone of it.
+     * @param {HTMLElement} uid 
+     * @returns {HTMLElement | null}
      */
-    getMetadata() {
-        return { ...this.#metadata };
-    }
+    cloneObjectDefinition(uid) {
+        const target = this.getObjectDefinition(uid);
 
-    /**
-     * NEW: Removed <vn-project>, assets are now directly inside <vn-project>.
-     * Retrieves the VNAssetsElement instance associated with this project.
-     * @returns {VNAssetsElement | null}
-     */
-    getAssetsElement() {
-        return this;
-    }
+        if (target === null) {
+            Log.color("red").italic()`[VNProject]` + ` Object with uid ${uid} not found.`;
+            return null;
+        }
 
-    /**
-     * Finds an asset definition element within the <vn-project> container by its uid.
-     * @param {string} uid - The unique identifier of the asset definition.
-     * @returns {Element | null} The definition element or null if not found.
-     */
-    getAssetDefinition(uid) {
-        return this.querySelector(`:scope > [uid="${uid}"]`);
-        
+        return target.cloneNode(true);
     }
 }
 
-customElements.define("vn-project", VNProjectElement);
+customElements.define('vn-project', VNProject);

@@ -1,28 +1,21 @@
-/**
- * @module components
- * @fileoverview Exports all the components used in the <vn-player> web component.
- * Each file also registers the component to the browser's custom element registry.
- */
- 
-
-import VNProjectElement from "./vn-project.js";
-import VNAssetsElement from "./vn-project.js";
-import VNActorElement from "./vn-actor.js";
-import VNSpriteElement from "./vn-sprite.js";
-import VNSceneElement from "./vn-scene.js";
-import VNTextBoxElement from "./text-box.js";
-import VNScriptElement from "./vn-script.js";
-import VNStyleElement from "./vn-style.js";
-import VNPlayerElement from "./vn-player.js";
+import VNPlayer from "./vn-player.js";
+import VNProject from "./vn-project.js";
+import VNScene from "./vn-scene.js";
+import VNObject from "./vn-object.js";
+import VNScript from "./vn-script.js";
+import VNTextBox from "./text-box.js";
+import VNConfig from "./vn-config.js";
+import VNStyle from "./vn-style.js";
+import VNSprite from "./vn-sprite.js";
 
 export default {
-    VNPlayerElement,
-    VNProjectElement,
-    VNAssetsElement,
-    VNActorElement,
-    VNSpriteElement,
-    VNSceneElement,
-    VNTextBoxElement,
-    VNScriptElement,
-    VNStyleElement
-};
+    VNTextBox,
+    VNPlayer,
+    VNProject,
+    VNScene,
+    VNObject,
+    VNScript,
+    VNConfig,
+    VNStyle,
+    VNSprite
+}
