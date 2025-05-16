@@ -1,79 +1,51 @@
-
 /**
- * Wrapper for Web Animations API.
+ * Web Animations API wrapper class for reusable animations applicable to any `Animatable` element.
  */
 export default class VNAnimation {
-    options = {
-        duration: 1000,
-        easing: `linear`,
-        fill: `forwards`,
-        delay: 0,
-        iterations: 1,
-        direction: `normal`,
-        composite: `replace`,
-        wait: false,
-    }
-    
     /**
-     * Create a new reusable animation. It's just a wrapper for the Web Animations API.
-     * @param {Keyframe[] | PropertyIndexedKeyframes | null, options?: number | KeyframeAnimationOptions} keyframes Keyframes for the animation.
-     * @param {EffectTiming & { wait: boolean }} options Easing, duration, delay, etc.
-     * @param {Function | undefined} [onFinish] Optional callback to run when the animation finishes.
+     * Create a new VNAnimation instance.
+     * @param {keyframes: Keyframe[] | PropertyIndexedKeyframes} keyframes The keyframes for the animation.
+     * @param {options?: number | (KeyframeAnimationOptions & { onfinish: Function })} options The options for the animation.
      */
-    constructor(keyframes, options, onFinish = null) {
+    constructor(
+        keyframes, 
+        options = {
+            duration: 1000,
+            easing: 'ease',
+            fill: 'both',
+            iterations: 1,
+            direction: 'normal',
+            delay: 0,
+        }) {
+
         this.keyframes = keyframes;
         this.options = options;
-        this.onFinishPersistent = onFinish || null;
     }
 
     /**
-     * Override the animation options. This is useful for reusing the same animation with different options.
-     * Only overrides specified keys specified in the object.
-     * @param {EffectTiming & { wait: boolean }} options New options for the animation.
-     * @todo define options type 
+     * Plays the animation on the target element.
+     * @param {Animatable} target The target element to animate.
+     * @returns {A}
      */
-    overrideOptions(options) {
-        if (typeof options !== "object") {
-            console.error(
-                `VNAnimation: Options must be an object. Received ${typeof options}.`
-            );
-            return;
-        }
+    animate(target) {
+        
+        const animation = target.animate(this.keyframes, this.options);
+        const oldOnFinish = animation.onfinish;
+        const oldOnCancel = animation.oncancel;
+        const oldOnRemove = animation.onremove;
 
-        this.options = { ...this.options, ...options };
-    }
-
-    /**
-     * Animate the target element and return a Promise.
-     * @param {Element | import("../components/vn-actor.js").default} target 
-     * @param {Function} onFinish Optional callback to run when the animation finishes. 
-     * @returns 
-     */
-    async animate(target, onFinish = null) {
-        if (!(target instanceof Element) && typeof target !== "string") {
-            console.error(
-                `VNAnimation: Target must be an Element or a string (UID).`
-            );
-            return new Promise((resolve) => resolve()); // Skip animation if target is invalid
-        }
-
-        if (typeof target === "string") {
-            target = document.querySelector(`[uid="${target}"]`);
-
-            if (target === null) {
-                console.error(
-                    `VNAnimation: Target element not found for UID "${target}".`
-                );
-                return new Promise((resolve) => resolve()); // Skip animation if target is missing
+        const internalOnFinishHandler = (e) => {
+            if (this.options.onfinish && typeof this.options.onfinish === 'function') {
+                this.options.onfinish(e);
             }
-        }
 
-        return new Promise((resolve) => {
-            target.animate(this.keyframes, this.options).onfinish = () => {
-                this.onFinishPersistent?.();
-                onFinish?.();
-                resolve();
-            };
-        });
+            if (oldOnFinish && typeof oldOnFinish === 'function') {
+                oldOnFinish(e);
+            }
+        };
+
+        animation.onfinish = internalOnFinishHandler;
+
+        return animation;
     }
 }

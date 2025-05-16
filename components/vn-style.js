@@ -1,15 +1,16 @@
+import { Log } from "../utils/log.js";
+
 /**
- * A special <style> element that is used to inject CSS into the shadow DOM of a VN component.
+ * General component for injecting styles into any shadow DOM.
  */
-export default class VNStyleElement extends HTMLElement {
+export default class VNStyle extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
-        
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    display: none !important;
+                    display: none;
                 }
             </style>
             <slot></slot>
@@ -17,106 +18,38 @@ export default class VNStyleElement extends HTMLElement {
     }
 
     connectedCallback() {
-        let styleToAdd = null;
-        
-        if (!this.parentElement.shadowRoot) {
-            console.error(
-                "Parent element does not have a shadow root. Returning without applying styles..."
-            );
-            return;
-        }
 
-        if (this.hasAttribute("href") || this.hasAttribute("src")) {
-            const src = this.getAttribute("href") || this.getAttribute("src");
-
-            this.fetchStyle(src).then((style) => {
-                if (style) {
-                    style
-                        .text()
-                        .then((text) => {
-                            const styleElement = document.createElement("style");
-                            const css = text.trim();
-                            if (css.length > 0) {
-                                styleElement.textContent = css;
-                                this.shadowRoot.appendChild(styleElement);
-                            } else {
-                                console.warn(
-                                    `VNStyle: Style fetched from '${src}' is empty. Returning without applying styles...`
-                                );
-                            }
-                        })
-                        .catch((error) => {
-                            throw new MediaError(
-                                `Error reading style text content after fetching stylesheet from source: '${src}' :`,
-                                error
-                            );
-                        });
-                } else {
-                    console.error(
-                        `Failed to fetch style from source: '${src}'`
-                    );
+        const findClosestShadowHost = (element) => {
+            // Traverse up the DOM tree to find the closest shadow host
+            while (element) {
+                if (element.shadowRoot) {
+                    return element;
                 }
-            });
+                console.log("Checking element:", element);
+                element = element.parentElement;
+
+            }
+
+            console.log(element);
+
+            return null;
+
+        }
+        
+        const parent = findClosestShadowHost(this.parentNode);
+
+        if (parent && parent.shadowRoot) {
+            const style = document.createElement("style");
+            style.textContent = this.innerHTML;
+            this.parentElement.shadowRoot.appendChild(style);
+            Log.color("lightgreen").italic()`[VNStyle] <vn-style> styles applied to shadow DOM.`;
         } else {
-            const text = this.textContent.trim();
-
-            if (text.length > 0) {
-                const styleElement = document.createElement("style");
-                styleElement.classList.add("injected-style");
-                styleElement.textContent = text;
-                styleToAdd = styleElement;
-            } else {
-                console.warn(
-                    "VNStyle: No href/src attribute or innerHTML provided. Returning without applying styles..."
-                );
-                return;
-            }
+            Log.color("#ff6666").italic()
+            `[VNStyle] <vn-style> must be a child of a shadow DOM element to apply styles.`
+            `Element: ${this.parentElement.tagName} does not have a shadow DOM.`;
+            this.remove();
         }
-
-        if (styleToAdd === null) {
-            console.error(
-                "VNStyle: styleToAdd is null after attempting to fetch or parse styles. Returning without applying styles..."
-            );
-
-            return;
-        }
- 
-        if (this.parentElement.shadowRoot) {
-            if (styleToAdd.hasAttribute("data-vn-processed")) {
-                styleToAdd.removeAttribute("data-vn-processed");
-            }
-            this.parentElement.shadowRoot.appendChild(styleToAdd);
-        } else {
-            console.error(
-                "VNStyle: Parent element does not have a shadow root. Returning without applying styles..."
-            );
-        }
-    }
-
-    /**
-     * Fetches a style from the given URL.
-     * * @param {string} url - The URL of the style to fetch.
-     * * @returns {Promise<Response>} A promise that resolves to the fetched style response.
-     */
-    async fetchStyle(url) {
-        let result = null;
-
-        try {
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(
-                    `Failed to fetch style: ${response.statusText}`
-                );
-            }
-
-            result = response;
-        } catch (error) {
-            console.error("Error fetching style:", error);
-        }
-
-        return result;
     }
 }
 
-customElements.define("vn-style", VNStyleElement);
+customElements.define("vn-style", VNStyle);

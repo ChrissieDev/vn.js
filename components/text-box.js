@@ -1,1123 +1,580 @@
-import VNCommand from "../engine/VNCommand.js";
-import html from "../utils/html.js";
+import { Log } from "../utils/log.js";
 
-/**
- * @file text-box.js
- * Implements the VNTextboxElement custom element.
- * Displays text and inline HTML, optionally with scrolling character by character
- * while preserving nested HTML structure, and handles user interaction for proceeding.
- * Converts triple hyphens (---) to em dashes (—) and double hyphens (--) to en dashes (–).
- * Can be defined in <vn-project> and instantiated in <vn-scene>.
- */
-export default class VNTextboxElement extends HTMLElement {
-    
-    // General properties
-    #isScrolling = false;
-    #isComplete = false;
-    #canProceed = false;
-    #scrollTimeoutId = null;
-    #indicatorTimeoutId = null;
-    #startDelayTimeoutId = null;
-    #isSkipping = false;
+const html = (strings, ...values) => strings.reduce((acc, str, i) => acc + str + (values[i] || ''), '');
 
-    // Variables related to parsing nested HTML elements while maintaining the scrolling effect
-    #processingStack = [];
-    #currentTextNode = null;
-    #currentCharIndex = 0;
-    #currentTargetShadowTextNode = null;
-    #currentTextNodeProcessedContent = null; // NEW: Store processed text for scrolling
-
-    /**
-     * Outer container for the text content.
-     * @type {HTMLElement}
-     */
-    #contentElement = null;
-
-    /**
-     * The container holding the title text.
-     * @type {HTMLElement}
-     */
-    #titleElement = null;
-
-    /**
-     * The animated '▶' (or styled otherwise) indicator element.
-     * @type {HTMLElement}
-     */
-    #indicatorElement = null;
-    
-    /**
-     * Container for the text display inside the content container. Scrollable if needed, and supports nested HTML.
-     * @type {HTMLElement}
-     */
-    #textDisplayElement = null;
-    
-    #boundHandleInteraction = this.#handleInteraction.bind(this);
-    #boundHandleKeydown = this.#handleKeydown.bind(this);
-
-    /**
-     * The base interval at which text is scrolled inside #textDisplayElement.
-     */
-
-    get startDelayMs() {
-        return this.getAttribute("start-delay") || 0;
-    }
-    set startDelayMs(value) {
-        this.setAttribute("start-delay", value);
-    }
-
-    get endDelayMs() {
-        return this.getAttribute("end-delay") || 100;
-    }
-
-    set endDelayMs(value) {
-        this.setAttribute("end-delay", value);
-    }
-
-    /**
-     * Dictionary of characters that have a different scrolling speed when displayed.
-     * @todo make these customizable
-     */
-    charIntervals = {
-        " ": "150%",
-        ".": "700%",
-        "?": "700%",
-        "!": "700%",
-        "~": "200%",
-        ",": "350%",
-        ";": "350%",
-        ":": "500%",
-        "—": "500%", // Em dash (parsed from `---`)
-        "–": "300%", // En dash (parsed from `--`)
-        "-": "150%",  // Regular hyphen (keep original speed if desired)
-    };
-
-    // Variables related to differentiating between a definition inside <vn-project> and an instance inside <vn-scene>
-    #isDefinitionParsed = false;
-    #isInstanceInitialized = false;
-
-    static observedAttributes = [
-        "uid", // reference or definition id
-        
-        // directly sets the inline style attribute of the element. must be valid css values for each attribute's css rule equivalent.
-        "top",
-        "left",
-        "bottom",
-        "right",
-        "width",
-        "height",
-        "color",
-        "background",
-
-        // behavior related attributes
-        "ms",
-        "start-delay",
-        "end-delay",
-        "scrolling",
-        "unskippable",
-        "title",
-        "style",
-        "choices",
-    ];
+export default class VNTextBox extends HTMLElement {
+    #charIntervalObserver = null;
+    #dynamicCursorElement = null;
 
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
         this.shadowRoot.innerHTML = `
-        <style>
+            <style>
+                :host {
+                    --left: 50%; 
+                    --bottom: 5%;
+                    --width: 90%;
+                    --height: auto;
+                    --max-height: 35%; 
 
-            @keyframes bump {
-                0% { transform: scale(0.98); opacity: 0; }
-                50% { transform: scale(1.02); opacity: 1; }
-                100% { transform: scale(1); }
-            }
+                    --background: rgba(0, 0, 0, 0.75);
+                    --border-radius: 0.5em;
+                    --border: 2px solid rgba(255, 255, 255, 0.2);
+                    --cursor-content: "▶"; 
+                    --cursor-blink-speed: 0.7s;
+                    --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
 
-            :host {
+                    --content-color: #fff;
+                    --content-font-size: 1.0em;
+                    --content-font-family: "Helvetica", "Arial", sans-serif;
+                    --content-font-weight: 400;
+                    --content-text-align: left;
+                    --content-padding: 1em;
+                    --content-line-height: 1.6;
+                    
+                    --speaker-color: #fff;
+                    --speaker-font-size: 1.3em;
+                    --speaker-font-family: sans-serif;
+                    --speaker-font-weight: 700;
+                    --speaker-text-align: left;
+                    --speaker-padding: 0.5em 1em;
+                    --speaker-background: rgba(0, 0, 0, 0.3);
+                    
+                    display: flex; 
+                    flex-flow: column nowrap;
+                    position: absolute;
+                    
+                    left: var(--left, 0);
+                    right: var(--right, auto);
+                    top: var(--top, auto);  
+                    bottom: var(--bottom, 0);
+                    width: var(--width, auto);
+                    height: var(--height, auto);
+                    max-height: var(--max-height);
 
-                position: absolute;
-                display: flex;
-                flex-direction: column;
-                box-sizing: border-box;
-                border: none;
-                background-color: rgba(0, 0, 0, 0.7);
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.75);
-                border-radius: 5px;
-                overflow: hidden;
-                font-family: 'Helvetica', 'Arial', sans-serif;
-                user-select: none;
-                height: 25%;
-            }
+                    background: var(--background);
+                    border-radius: var(--border-radius);
+                    border: var(--border);
+                    box-shadow: var(--box-shadow);
+                    
+                    max-width: 100%;
+                    
+                    margin: 0;
+                    padding: 0;
+                    
+                    box-sizing: border-box;
+                    overflow: hidden;
 
-            :host(.visible) {
-                 animation: bump ease-in-out 0.25s forwards;
-            }
+                    container-type: inline-size;
+                    container-name: text-box-container;
+                }
 
-
-            .title {
-                background-color: rgba(25, 31, 44, 0.5);
-                color: #fff;
-                line-height: 1.6;
-                padding: 6px 9px;
-                font-weight: bold;
-                border-bottom: 1px solid #444;
-                flex-shrink: 0;
-                font-size: 1.2rem;
-            }
-
-            .title:empty {
-                display: none;
-            }
-
-            .content {
-                padding: 16px 24px;
-                color: #fff;
-                line-height: 1.6;
-                flex-grow: 1;
-                overflow-y: auto;
-                scrollbar-width: none;
-                min-height: 1.5em;
-                font-weight: 400;
-            }
-
-            /**
-            * NEW: Repurposing <text-box> for VNCommandChoice to show a box with buttons
-            */
-            .choices {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                line-height: 1.6;
-            }
-
-            .choices ::slotted(.choice-button) {
-                background-color: transparent;
-                border-left: 4px solid #fff;
-                border-right: none;
-                border-top: none;
-                border-bottom: none;
+                :host([centered]) {
+                    transform: translateX(-50%);
+                }
                 
-            }
+                .header {
+                    display: flex;
+                    flex-flow: row nowrap;
+                    justify-content: flex-start;
+                    text-align: var(--speaker-text-align);
+                    width: 100%;
+                    flex-shrink: 0; 
+                    padding: var(--speaker-padding);
+                    background: var(--speaker-background);
+                    box-sizing: border-box;
+                }
 
-            .choices ::slotted(.choice-item) {
-                font-size: 24px;
-                font-weight: 400;
-                color: #fff;
-                font-family: 'Helvetica', 'Arial', sans-serif;
-                line-height: 1.6;
-                padding: 8px 16px;
-                text-align: left;
-            }
+                .speaker-name {
+                    color: var(--speaker-color);
+                    font-size: max(16px, var(--speaker-font-size, 3cqi));
+                    font-family: var(--speaker-font-family);
+                    font-weight: var(--speaker-font-weight);
+                    text-wrap: break-word;
+                    overflow-wrap: break-word;
+                    user-select: none;
+                }
 
-            .content::-webkit-scrollbar {
-                display: none;
-            }
+                .content-wrapper {
+                    display: flex; /* Keep flex for overall structure if needed */
+                    width: 100%;
+                    flex-grow: 1; 
+                    padding: var(--content-padding);
+                    background: var(--content-background); 
+                    box-sizing: border-box;
+                    overflow-y: auto; 
+                    line-height: var(--content-line-height);
+                    user-select: none;
+                }
 
-            .source-content-wrapper {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                width: 0 !important;
-                height: 0 !important;
-                overflow: hidden !important;
-                position: absolute !important;
-            }
+                #scroll-area {
+                    flex-grow: 1;
+                    color: var(--content-color);
+                    font-size: max(16px, var(--content-font-size, 2.5cqi));
+                    font-family: var(--content-font-family);
+                    font-weight: var(--content-font-weight);
+                    text-align: var(--content-text-align);
+                }
+               
+                #scroll-area p, #scroll-area div {
+                    margin-top: 0;
+                    margin-bottom: 0.75em; 
+                }
+                #scroll-area p:last-child, #scroll-area div:last-child {
+                    margin-bottom: 0;
+                }
+                #scroll-area strong, #scroll-area b { font-weight: bold; }
+                #scroll-area em, #scroll-area i { font-style: italic; }
+                #scroll-area a { color: var(--link-color, #87CEFA); text-decoration: underline; }
 
-            .text-display {
+                @keyframes blink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0; }
+                }
 
-            }
+                /* Styles for the dynamically inserted cursor */
+                #scroll-area .dynamic-cursor {
+                    display: inline; 
+                    margin-left: 0.1em;
+                    color: var(--content-color); 
+                    font-size: calc(var(--content-font-size, 2.5cqi) * 0.8); 
+                    font-weight: normal; 
+                }
+                #scroll-area .dynamic-cursor::after {
+                    content: var(--cursor-content, "▶"); 
+                    animation: blink var(--cursor-blink-speed, 0.7s) step-end infinite;
+                }
 
-            .text-display wait { display: none; }
-            .text-display b, .text-display strong { font-weight: bold; }
-            .text-display i, .text-display em { font-style: italic; }
-            .text-display p { margin: 0 0 0.5em 0; }
+                #scroll-area .dynamic-cursor::before {
+                    content: " "; /* Space before cursor */
+                }
 
+                #scroll-area .dynamic-cursor:not([visible]) {
+                    display: none !important; /* Ensure it's hidden */
+                }
 
+            </style>
 
-            .indicator {
-                display: inline-block;
-                margin-left: 0.5em;
-                vertical-align: baseline;
-                color: #fff;
-                animation: blink 1s step-end infinite;
-            }
-
-            @keyframes blink {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0; }
-            }
-
-            .indicator:not(.visible) {
-                display: none;
-            }
-
-            
-        </style>
-        <div class="title" part="title"><slot name="title"></slot></div>
-        <div class="content" part="content">
-            <div class="choices" part="choices"><slot name="choices"></slot></div>
-            <span class="text-display" part="text-display">
-            
-            </span>
-            <!-- NEW: Wrapper div specifically to hide the default slot -->
-            <div class="source-content-wrapper">
-                <slot></slot> <!-- Default slot IS NOW HIDDEN RELIABLY -->
+            <div class="header" part="header">
+                <span class="speaker" part="speaker-container">
+                    <slot name="speaker">
+                        <span class="speaker-name" part="speaker-name"></span>
+                    </slot>
+                </span>
             </div>
+            <div class="content-wrapper" part="content-wrapper">
+                <div id="scroll-area" part="scroll-area"></div>
+                
+            </div>
+            <div style="display: none;">
+                <slot id="source-slot"></slot> 
+            </div>
+        `;
+
+        this.isScrolling = false;
+        this.isComplete = false;
+        this.skipRequested = false;
+        this.#scrollTimeoutId = null;
+        this.#currentRevealPromiseCtrl = null;
+
+        this.ms = this.hasAttribute('ms') ? parseInt(this.getAttribute('ms'), 10) : 25;
+
+        this.charIntervals = {
+            '.': 250,
+            ',': 120,
+            '!': 250,
+            '?': 250,
             
-            <span class="indicator" part="indicator">▶</span>
-        </div>
-    `;
+        };
 
-        this.#contentElement = this.shadowRoot.querySelector(".content");
-        this.#titleElement = this.shadowRoot.querySelector(".title");
-        this.#indicatorElement = this.shadowRoot.querySelector(".indicator");
-        this.#textDisplayElement =
-            this.shadowRoot.querySelector(".text-display");
-
-        this.#updateInternalMsValues();
+        this.speakerNameElement = this.shadowRoot.querySelector(".speaker-name");
+        this.scrollArea = this.shadowRoot.querySelector("#scroll-area");
+        this.sourceSlot = this.shadowRoot.querySelector("#source-slot");
     }
 
-    #updateInternalMsValues() {
-        this.baseScrollTime = this.#parseTime(this.getAttribute("ms")) ?? 50;
-        this.startDelayMs =
-            this.#parseTime(this.getAttribute("start-delay")) ?? 0;
-        this.endDelayMs =
-            this.#parseTime(this.getAttribute("end-delay")) ?? 100;
+    static get observedAttributes() {
+        return [
+            "speaker", "uid", "ms",
+            "left", "right", "top", "bottom", "width", "height", "max-height",
+            "cursor"
+        ];
     }
 
-    connectedCallback() {
-        const isDefinition = this.closest("vn-project") !== null;
-        const id = this.getAttribute("uid") || "anonymous";
+    static get nonCssAttributes() {
+        return ["uid", "speaker", "ms"];
+    }
 
-        if (isDefinition) {
-            if (!this.#isDefinitionParsed) {
-                this.#parseDefinition();
+    get speaker() { return this.getAttribute("speaker"); }
+    set speaker(value) { this.setAttribute("speaker", value); }
+    get uid() { return this.getAttribute("uid"); }
+    set uid(value) { this.setAttribute("uid", value); }
+
+
+    get cursorChar() { return this.getAttribute("cursor"); }
+    set cursorChar(value) { this.setAttribute("cursor", value); }
+
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (name === "ms") {
+            this.ms = parseInt(newValue, 10) || 25;
+        } else if (VNTextBox.nonCssAttributes.includes(name)) {
+            if (name === "speaker") {
+                this.#renderSpeaker(newValue);
+            }
+        } else if (name === "cursor") {
+            this.style.setProperty('--cursor-content', newValue ? `"${newValue}"` : '""');
+            if (this.#dynamicCursorElement) {
+                 this.#dynamicCursorElement.style.setProperty('--cursor-content', newValue ? `"${newValue}"` : '""');
             }
         } else {
-            this.classList.add("visible");
+            this.style.setProperty(`--${name}`, newValue);
+        }
 
-            if (!this.#isInstanceInitialized) {
-                this.#initializeInstance();
-            }
-
-            this.#updateInternalMsValues();
-
-            // attach event listeners to continue if this isn't a choice dialog
-            if (this.getAttribute("choices") === null) {
-                this.addEventListener("click", this.#boundHandleInteraction);            
-                window.addEventListener("keydown", this.#boundHandleKeydown);
-
-            }
-
-            requestAnimationFrame(() => {
-                this.#startDisplay();
-            });
+        if (this.getAttribute("cursor") === null) {
+             this.style.setProperty('--cursor-content', '""');
+        } else if (this.getAttribute("cursor") === "") {
+             this.style.setProperty('--cursor-content', '""');
         }
     }
 
-    disconnectedCallback() {
-        const id = this.getAttribute("uid") || "anonymous";
-        this.removeEventListener("click", this.#boundHandleInteraction);
-        window.removeEventListener("keydown", this.#boundHandleKeydown);
-        this.#clearTimeouts();
-        this.#isDefinitionParsed = false;
-        this.#isInstanceInitialized = false;
+    #boundHandleInteraction = null;
+    #boundKeyHandler = null;
+
+    #getCharFromAttrName(attrName) {
+        if (attrName.length <= 3 || !attrName.startsWith("ms:")) return null;
+        let char = attrName.substring(3);
+        if (char === "_") return " ";
+        return char;
     }
 
-    #upgradeProperty(prop) {
-        if (this.hasOwnProperty(prop)) {
-            let value = this[prop];
-            delete this[prop];
-            this[prop] = value;
+    #updateCharIntervalsFromAttribute(attrName, attrValue) {
+        const char = this.#getCharFromAttrName(attrName);
+        if (char) {
+            const interval = parseInt(attrValue, 10);
+            if (!isNaN(interval)) {
+                this.charIntervals[char] = interval;
+            } else {
+                delete this.charIntervals[char];
+            }
         }
     }
     
-    #parseDefinition() {
-        const id = this.getAttribute("uid") || "anonymous_def";
-        if (this.#isDefinitionParsed) return;
-        this.#isDefinitionParsed = true;
-    }
-
-    #initializeInstance() {
-        const id = this.getAttribute("uid") || "anonymous_inst";
-        if (this.#isInstanceInitialized) return;
-
-        let definition = null;
-        const definitionUid = this.getAttribute("ref");
-        const player = this.closest("vn-player");
-
-        if (definitionUid && player) {
-            definition = player.getAssetDefinition(definitionUid);
-            if (!definition || !(definition instanceof VNTextboxElement)) {
-                console.warn(
-                    `[INST Textbox ${id}] Could not find valid textbox definition for uid "${definitionUid}".`
-                );
-                definition = null;
-            } else {
-                if (typeof definition.ensureParsed === "function") {
-                    definition.ensureParsed();
-                }
-                if (!definition.isParsed?.()) {
-                    console.warn(
-                        `[INST Textbox ${id}] Definition "${definitionUid}" exists but reports not parsed. Initialization might be incomplete.`
-                    );
-                }
-            }
-        } else if (this.hasAttribute("uid") && player && !definitionUid) {
-            const directDef = player.getAssetDefinition(
-                this.getAttribute("uid")
-            );
-            if (directDef && directDef instanceof VNTextboxElement) {
-                definition = directDef;
-            }
-        }
-
-        if (definition) {
-            VNTextboxElement.observedAttributes.forEach((attrName) => {
-                if (attrName === "uid" || attrName === "ref") return;
-                if (attrName === "title") return;
-
-                if (
-                    definition.hasAttribute(attrName) &&
-                    !this.hasAttribute(attrName)
-                ) {
-                    const value = definition.getAttribute(attrName);
-                    this.setAttribute(attrName, value);
-                }
-            });
-            const definitionStyle = definition.getAttribute("style");
-            if (definitionStyle) {
-                const currentStyle = this.getAttribute("style") || "";
-                this.setAttribute(
-                    "style",
-                    `${definitionStyle}; ${currentStyle}`
-                );
-            }
-        } else {
-        }
-
-        this.#syncAllAttributes();
-
-        this.#isInstanceInitialized = true;
-    }
-
-    /** Ensures the definition is parsed if this is a definition element. */
-    ensureParsed() {
-        if (this.closest("vn-project") && !this.#isDefinitionParsed) {
-            this.#parseDefinition();
+    #updateAllCharIntervalsFromAttributes() {
+        for (let i = 0; i < this.attributes.length; i++) {
+            const attr = this.attributes[i];
+            this.#updateCharIntervalsFromAttribute(attr.name, attr.value);
         }
     }
 
-    /** Checks if this is a parsed definition element. */
-    isParsed() {
-        
-        return this.closest("vn-project") !== null && this.#isDefinitionParsed;
-    }
+    connectedCallback() {
+        Log.color("lightgreen").italic`[${this.constructor.name}${this.uid ? ` (${this.uid})` : ''}] attached.`;
 
-    #clearTimeouts() {
-        clearTimeout(this.#scrollTimeoutId);
-        clearTimeout(this.#indicatorTimeoutId);
-        clearTimeout(this.#startDelayTimeoutId);
-        this.#scrollTimeoutId = null;
-        this.#indicatorTimeoutId = null;
-        this.#startDelayTimeoutId = null;
-    }
+        this.#updateAllCharIntervalsFromAttributes();
 
-    #scrollToBottom() {
-        
-        requestAnimationFrame(() => {
-            if (this.#contentElement) {
-                const isNearBottom =
-                    this.#contentElement.scrollHeight -
-                        this.#contentElement.scrollTop <=
-                    this.#contentElement.clientHeight + 30;
-                if (!isNearBottom) {
-                    this.#contentElement.scrollTop =
-                        this.#contentElement.scrollHeight;
+        this.#charIntervalObserver = new MutationObserver(mutationsList => {
+            for (const mutation of mutationsList) {
+                if (mutation.type === 'attributes' && mutation.attributeName.startsWith("ms:")) {
+                    this.#updateCharIntervalsFromAttribute(mutation.attributeName, this.getAttribute(mutation.attributeName));
                 }
             }
         });
-    }
-
-    // NEW: Helper function for text replacement
-    #processTextHyphens(text) {
-        if (!text) return "";
-        // Replace triple hyphens first, then double hyphens
-        return text.replace(/---/g, '—').replace(/--/g, '–');
-    }
+        this.#charIntervalObserver.observe(this, { attributes: true });
 
 
-    #startDisplay() {
-        if (!this.#isInstanceInitialized && !this.closest("vn-project")) {
-            console.warn(
-                "VNTextbox: #startDisplay called before instance initialized. Initializing now."
-            );
-            this.#initializeInstance();
-        }
-
-        this.#clearTimeouts();
-        this.#isScrolling = false;
-        this.#isComplete = false;
-        this.#canProceed = false;
-        this.#isSkipping = false;
-        this.#indicatorElement.classList.remove("visible");
-        this.#textDisplayElement.innerHTML = ""; // Clear previous content
-
-        const slot = this.shadowRoot.querySelector("slot:not([name])");
-        const sourceNodes = slot
-            ? slot
-                  .assignedNodes({ flatten: true })
-                  .filter(
-                      (n) =>
-                          n.nodeType === Node.ELEMENT_NODE ||
-                          n.nodeType === Node.TEXT_NODE
-                  )
-            : [];
-
-        this.#processingStack = [];
-        this.#currentTextNode = null;
-        this.#currentCharIndex = 0;
-        this.#currentTargetShadowTextNode = null;
-        this.#currentTextNodeProcessedContent = null; // Reset processed text
-
-        const hasContent = sourceNodes.some(
-            (node) =>
-                (node.nodeType === Node.TEXT_NODE &&
-                    node.textContent.trim().length > 0) ||
-                (node.nodeType === Node.ELEMENT_NODE &&
-                    node.tagName.toLowerCase() !== "wait")
-        );
-
-        if (!hasContent) {
-            this.#isComplete = true;
-            this.#finishScrolling(); // Go directly to finish state
-            return;
-        }
-
-        // Initialize the processing stack with the top-level source nodes
-        if (sourceNodes.length > 0) {
-            this.#processingStack.push({
-                nodes: sourceNodes,
-                index: 0,
-                shadowParent: this.#textDisplayElement,
-            });
-        }
-
-        this.#scrollToBottom(); // Initial scroll
-
-        if (this.scrolling) {
-            this.#isScrolling = true;
-            if (this.startDelayMs > 0) {
-                this.#startDelayTimeoutId = setTimeout(() => {
-                    this.#startDelayTimeoutId = null;
-                    if (this.#isScrolling) this.#scrollLoop(); // Start scrolling after delay
-                }, this.startDelayMs);
-            } else {
-                this.#scrollLoop(); // Start scrolling immediately
+        VNTextBox.observedAttributes.forEach(attr => {
+            if (this.hasAttribute(attr) && attr !== "ms") {
+                this.attributeChangedCallback(attr, null, this.getAttribute(attr));
             }
-        } else {
-            this.#showFullText(); // Show all text at once if scrolling is disabled
+        });
+        if (!this.hasAttribute('cursor')) {
+            this.style.setProperty('--cursor-content', 'var(--cursor-content, "▶")');
         }
-    }
-
-    #scrollLoop() {
-        if (!this.#isScrolling || this.#isSkipping) {
-            if (this.#isSkipping) {
-                this.#showFullText(true); // If skipping, jump to full text display
-            }
-            return; // Stop the loop if not scrolling or currently skipping
+        if (this.hasAttribute('ms')) {
+            this.ms = parseInt(this.getAttribute('ms'), 10) || 25;
         }
 
-        // Process the current text node character by character
-        if (this.#currentTextNode) {
-            // Use the pre-processed text content
-            const text = this.#currentTextNodeProcessedContent || "";
 
-            if (this.#currentCharIndex < text.length) {
-                const char = text[this.#currentCharIndex];
-                this.#currentTargetShadowTextNode.nodeValue += char; // Append char to shadow DOM
-                this.#currentCharIndex++;
+        this.#boundHandleInteraction = this.#handleInteraction.bind(this);
+        this.#boundKeyHandler = this.#handleKeyInteraction.bind(this);
 
-                let delay = this.charIntervals[char] || this.ms; // Get specific char delay
-                if (typeof delay === "string") {
-                    let delayMs = 0;
-                    let delayStringNumber = /^\d+$/.exec(delay);
-                    let delayStringPercentMatch = delay.match(/^(\d+)%$/);
-                    let delayStringPercent = delayStringPercentMatch ? delayStringPercentMatch[1] : null;
-
-                    // check specifically for null because a value of 0 is falsy
-                    if (delayStringNumber !== null) {
-                        delayMs = Math.floor(parseFloat(delay) || 0);
-                    } else if (delayStringPercent !== null) {
-                        delayMs = Math.floor((parseFloat(delayStringPercent) / 100) * this.ms);
-                    }
-
-                    if (delayMs < 0) {
-                        throw new Error(`VNTextboxElement: Delay for character "${char}" cannot be negative! Got "${delay}".`);
-                    }
-
-                    if (!(delayStringNumber || delayStringPercent)) {
-                        throw new Error(`VNTextboxElement: Invalid character delay value "${delay}". Valid format for charDelay (as string) is "number" or "number%"`);
-                    }
-
-                    delay = delayMs;
-                }
-                
-                this.#scrollToBottom(); // Scroll if needed
-                this.#scrollTimeoutId = setTimeout(() => this.#scrollLoop(), delay); // Schedule next char
-                return; // Wait for timeout
-            } else {
-                // Finished with the current text node
-                this.#currentTextNode = null;
-                this.#currentTargetShadowTextNode = null;
-                this.#currentTextNodeProcessedContent = null; // Clear processed content
-                this.#currentCharIndex = 0;
-                // Continue processing the stack immediately (no return here)
-            }
-        }
-
-        // Find the next node to process from the stack
-        while (this.#processingStack.length > 0) {
-            const currentState = this.#processingStack[this.#processingStack.length - 1];
-            const { nodes, index, shadowParent } = currentState;
-
-            // If we've processed all nodes at this level, pop the stack state
-            if (index >= nodes.length) {
-                this.#processingStack.pop();
-                continue; // Check the next level up
-            }
-
-            const currentNode = nodes[index];
-            currentState.index++; // Move to the next node for the next iteration at this level
-
-            if (currentNode.nodeType === Node.ELEMENT_NODE) {
-                const tagName = currentNode.tagName.toLowerCase();
-
-                if (tagName === "wait") {
-                    // Handle <wait> tag for pauses
-                    const waitMs = this.#parseTime(currentNode.getAttribute("ms")) ?? 500;
-                    if (waitMs > 0) {
-                        this.#scrollTimeoutId = setTimeout(() => this.#scrollLoop(), waitMs);
-                        return; // Pause execution
-                    } else {
-                        continue; // Ignore wait with 0 or invalid ms
-                    }
-                }
-
-                // Clone the element (shallow) and append to the shadow DOM
-                const clone = currentNode.cloneNode(false);
-                shadowParent.appendChild(clone);
-
-                // If the element has children, push a new state onto the stack to process them
-                if (currentNode.childNodes.length > 0) {
-                    this.#processingStack.push({
-                        nodes: currentNode.childNodes,
-                        index: 0,
-                        shadowParent: clone, // Children will be appended inside the clone
-                    });
-                }
-
-                // Add a small delay after processing an element for pacing
-                const elementDelay = Math.max(1, this.ms);
-                this.#scrollToBottom();
-                this.#scrollTimeoutId = setTimeout(() => this.#scrollLoop(), elementDelay);
-                return; // Wait for timeout
-
-            } else if (currentNode.nodeType === Node.TEXT_NODE && currentNode.textContent.trim().length > 0) {
-                // Found a non-empty text node to process
-                this.#currentTextNode = currentNode;
-                this.#currentCharIndex = 0;
-
-                // sequential hyphens automatically get replaced in the text content
-                this.#currentTextNodeProcessedContent = this.#processTextHyphens(currentNode.textContent);
-
-                // Create an empty text node in the shadow DOM to append characters to
-                this.#currentTargetShadowTextNode = document.createTextNode("");
-                shadowParent.appendChild(this.#currentTargetShadowTextNode);
-
-                // Immediately schedule the next loop iteration to start adding chars (minimal delay)
-                this.#scrollTimeoutId = setTimeout(() => this.#scrollLoop(), 1);
-                return; // Let the character-appending logic take over
-
-            } else {
-                // Skip empty text nodes or other node types (like comments)
-                continue;
-            }
-        }
-
-        // If the stack is empty and there's no current text node being processed, scrolling is finished
-        if (this.#processingStack.length === 0 && !this.#currentTextNode) {
-            this.#finishScrolling();
-        }
-    }
-
-
-    #finishScrolling() {
+        this.addEventListener('click', this.#boundHandleInteraction);
+        this.addEventListener('keydown', this.#boundKeyHandler);
         
-        this.#isScrolling = false;
-        this.#isComplete = true;
-        this.#isSkipping = false;
-        this.#processingStack = [];
-        this.#currentTextNode = null;
-        this.#currentTargetShadowTextNode = null;
-        this.#currentTextNodeProcessedContent = null; // Clear processed text state
-        this.#scrollToBottom();
-        this.#showIndicator();
-    }
-
-    #showFullText(wasSkipped = false) {
-        if (this.#isComplete) return; // Already done
-
-        this.#clearTimeouts(); // Stop any ongoing scrolling/delays
-        this.#isScrolling = false;
-        this.#isSkipping = false; // Reset skipping flag
-        this.#isComplete = true;
-
-        // Clear internal processing state
-        this.#processingStack = [];
-        this.#currentTextNode = null;
-        this.#currentTargetShadowTextNode = null;
-        this.#currentTextNodeProcessedContent = null;
-
-        this.#textDisplayElement.innerHTML = ""; // Clear potentially partially scrolled text
-        const slot = this.shadowRoot.querySelector("slot:not([name])");
-        const sourceNodes = slot ? slot.assignedNodes({ flatten: true }) : [];
-
-        // Recursive function to clone nodes and process text
-        const cloneNodesRecursively = (nodesToClone, shadowTargetParent) => {
-            for (const node of nodesToClone) {
-                if (node.nodeType === Node.ELEMENT_NODE && node.tagName.toLowerCase() === 'wait') {
-                    return; // Skip <wait> elements entirely when showing full text
-                }
-
-                if (node.nodeType === Node.TEXT_NODE) {
-                    // Process hyphens in the text content before creating the shadow node
-                    const processedText = this.#processTextHyphens(node.textContent);
-                    const newTextNode = document.createTextNode(processedText);
-                    shadowTargetParent.appendChild(newTextNode);
-                } else if (node.nodeType === Node.ELEMENT_NODE) {
-                    // Clone the element node (shallowly)
-                    const elementClone = node.cloneNode(false);
-                    shadowTargetParent.appendChild(elementClone);
-                    // Recursively clone its children into the new clone
-                    if (node.childNodes.length > 0) {
-                        cloneNodesRecursively(Array.from(node.childNodes), elementClone); // Convert NodeList to Array
-                    }
-                } else {
-                    const deepClone = node.cloneNode(true);
-                    shadowTargetParent.appendChild(deepClone);
-                }
-            }
-        };
-
-        // Start the recursive cloning process
-        cloneNodesRecursively(sourceNodes, this.#textDisplayElement);
-
-        this.#scrollToBottom(); // Ensure view is scrolled down
-        this.#showIndicator(wasSkipped); // Show the proceed indicator after appropriate delay
-    }
-
-    /**
-     * @type {VNCommand}
-     */
-    commandSource = null;
-
-    getCommandSource() {
-        return this.commandSource || null; // Return the command reference or null if not set
-    }
-
-    /**
-     * Sets the reference of the command that created this textbox.
-     * Used for identifying if this textbox should be deleted by the command on proceed.
-     * @param {VNCommand} command - The command that created this textbox.
-     */
-    setCommandSource(command) {
-
-        if (!command && !(command instanceof VNCommand)) {
-            throw new Error("VNTextboxElement: `command` is not of type VNCommand. VNTextboxElement.setCommandSource() failed:", command);
+        if (!this.hasAttribute('tabindex')) {
+            this.setAttribute('tabindex', '0');
         }
-
-        this.commandSource = command; // Store the command reference
-    }
-
-    getChoicesContainer() {
-        return this.shadowRoot.querySelector(".choices") || null; // Return the choices container or null if not found
-    }
-
-    addChoiceItem(choiceItem = "VNTextboxElement.addChoiceItem()") {
-        if (typeof choiceItem === "string") {
-            choiceItem = html`${choiceItem}`; // Convert string to HTML element
-        }
-
-        // slot the choices into the shadow DOM
-        if (!choiceItem.hasAttribute("slot")) {
-            console.warn("VNTextboxElement: Choice item must have slot set to 'choices':", choiceItem);
-            choiceItem.setAttribute("slot", "choices"); // Set the slot attribute to "choices"
-        } else if (choiceItem.getAttribute("slot") !== "choices") {
-            console.warn("VNTextboxElement: Incorrectly slotted element for choice item:", choiceItem);
-            choiceItem.setAttribute("slot", "choices"); // Ensure the slot is set to "choices"
-        }
-
-        this.appendChild(choiceItem); // Append the choice element to the choices container
-    }
-
-
-    #showIndicator(wasSkipped = false) {
-        if (this.getAttribute("choices") !== null) {    
-            this.#canProceed = false; // Don't treat this like dialogue
-            this.#isComplete = true;
-            this.#indicatorElement.classList.remove("visible");
-            return; // Don't show indicator if this is a choice dialog
-        }
-
-        if (wasSkipped && this.unskippable) {
-            // If skipped but unskippable, still show indicator but don't allow proceeding yet
-            this.#isComplete = true; // Mark as text displayed
-            this.#canProceed = false; // But block proceed signal
-            this.#indicatorElement.classList.add("visible");
-            return;
-        }
-
-        clearTimeout(this.#indicatorTimeoutId);
-        this.#indicatorTimeoutId = null;
-
-        const delay = wasSkipped ? 0 : this.endDelayMs; // No delay if text was skipped
-
-        if (delay > 0) {
-            this.#indicatorTimeoutId = setTimeout(() => {
-                if (this.#isComplete) { // Double check state in case of race conditions
-                    this.#canProceed = true;
-                    this.#indicatorElement.classList.add("visible");
-                }
-                this.#indicatorTimeoutId = null;
-            }, delay);
-        } else {
-            // Show indicator immediately if no delay or skipped
-            if (this.#isComplete) {
-                this.#canProceed = true;
-                this.#indicatorElement.classList.add("visible");
-            }
-        }
-    }
-
-    #skipScrolling() {
         
-        if (this.#isScrolling && !this.unskippable && !this.#isSkipping) {
-            this.#isSkipping = true; // Set flag to prevent scrollLoop from continuing normally
-            this.#clearTimeouts(); // Stop the current character timeout
-
-            // Dispatch a 'skip' event that could potentially be cancelled
-            const prevented = !this.dispatchEvent(
-                new CustomEvent("skip", {
-                    bubbles: true,
-                    composed: true,
-                    cancelable: true,
-                })
-            );
-
-            if (!prevented) {
-                // If the event wasn't cancelled, proceed to show the full text
-                // Use requestAnimationFrame to ensure it happens in the next paint cycle
-                requestAnimationFrame(() => {
-                    this.#showFullText(true); // Pass true to indicate it was skipped
-                });
-            } else {
-                // If skipping was prevented by an event listener, reset the flag
-                this.#isSkipping = false;
-                // Potentially restart the scroll loop if desired, or just let it be paused
-                // Current implementation just stops it; user would need to interact again.
-            }
-        } else if (this.unskippable) {
-            // console.log("Textbox is unskippable."); // Optional feedback
-        }
-    }
-
-
-    #handleInteraction(event) {
-        
-        if (this.closest("vn-project")) return; // Ignore interactions on definition elements
-
-        if (this.#isScrolling && !this.#isSkipping) {
-            // If text is scrolling, interaction skips the scrolling
-            this.#skipScrolling();
-        } else if (this.#canProceed) {
-            // If text is complete and proceed is allowed, dispatch 'proceed' event
-            const prevented = !this.dispatchEvent(
-                new CustomEvent("proceed", {
-                    bubbles: true,
-                    composed: true, // Allows event to cross shadow DOM boundary
-                })
-            );
-            // if (prevented) { console.log("Proceed event prevented."); } // Optional feedback
-        } else {
-            // Interaction occurred when not scrolling and not ready to proceed (e.g., during end delay)
-            // console.log("Interaction ignored (not scrolling, not proceedable)."); // Optional feedback
-        }
-    }
-
-    #handleKeydown(event) {
-        
-        if (this.closest("vn-project")) return; // Ignore keydown on definition elements
-
-        // Allow Space or Enter to trigger the same interaction as a click
-        if (event.code === "Space" || event.code === "Enter") {
-            event.preventDefault(); // Prevent default space/enter actions (like scrolling page)
-            this.#handleInteraction(event); // Treat as a standard interaction
-        }
-    }
-
-    #parseTime(timeStr) {
-        
-        if (timeStr === null || timeStr === undefined) return null;
-        if (typeof timeStr === 'number') return Math.max(0, timeStr);
-
-        if (typeof timeStr === 'string') {
-            const trimmed = timeStr.trim();
-            if (trimmed === '') return 0;
-
-            // Match plain numbers (treat as ms)
-            if (/^\d+(\.\d+)?$/.test(trimmed)) {
-                return Math.max(0, parseFloat(trimmed));
-            }
-            // Match numbers with units (ms or s)
-            const match = trimmed.match(/^(\d+(\.\d+)?)\s*(ms|s)$/i);
-            if (match) {
-                const value = parseFloat(match[1]);
-                const unit = match[3].toLowerCase();
-                if (unit === 's') {
-                    return Math.max(0, value * 1000);
-                } else { // ms
-                    return Math.max(0, value);
-                }
-            }
-        }
-        console.warn(`VNTextboxElement: Invalid time format "${timeStr}". Using default.`);
-        return null; // Indicate parsing failure or invalid type
-    }
-
-    #syncAttribute(name, value) {
-        
-        if (this.closest('vn-project') && !this.#isDefinitionParsed && name !== 'uid') return; // Don't sync non-UID attributes on unparsed definitions
-        
-        const useValue = value !== null ? value : 'auto'; // Default for position/size if value is null
-
-        switch (name) {
-            // Positioning & Sizing
-            case 'top': this.style.top = useValue; break;
-            case 'left': this.style.left = useValue; break;
-            case 'bottom': this.style.bottom = useValue; break;
-            case 'right': this.style.right = useValue; break;
-            case 'width': this.style.width = useValue; break;
-            case 'height': this.style.height = useValue; break;
-
-            // Styling
-            case 'color':
-                if (this.#contentElement) this.#contentElement.style.color = value ?? '';
-                break;
-            case 'background':
-                this.style.background = value ?? ''; // Apply to host element
-                break;
-            case 'style':
-                 // Direct style attribute handled by the browser, maybe log or handle conflicts if needed
-                break;
-
-            // Timing & Behavior
-            case 'ms':
-            case 'start-delay':
-            case 'end-delay':
-                this.#updateInternalMsValues();
-                break;
-
-            case 'scrolling':
-                // Handled by property getter/setter and used in #startDisplay
-                break;
-            case 'unskippable':
-                // Handled by property getter/setter and used in #skipScrolling/#showIndicator
-                break;
-
-            // Content
-            case 'title':
-                if (this.#titleElement) {
-                    // Prefer setting textContent on the named slot for better encapsulation
-                    const slot = this.#titleElement.querySelector('slot[name="title"]');
-                    if (slot) {
-                        // Clear existing assigned nodes before setting text content?
-                        // Or just set textContent which acts as fallback content
-                         slot.textContent = value ?? ''; // Simplest approach
-                         // If you need to replace slotted elements, more complex logic is needed.
-                    } else {
-                         // Fallback if slot isn't found (shouldn't happen with current HTML)
-                        this.#titleElement.textContent = value ?? '';
-                    }
-                    this.#updateTitleVisibility(); // Update visibility based on new content
-                }
-                break;
-
-            // Meta
-            case 'uid': // Read-only, used internally
-            case 'ref': // Read-only, used during initialization
-                break;
-
-            default:
-                // console.log(`VNTextbox: Attribute '${name}' changed but not explicitly handled.`);
-                break;
-        }
-    }
-
-    #syncAllAttributes() {
-        const nonObservedAttributes = this.getAttributeNames().filter(attr => !VNTextboxElement.observedAttributes.includes(attr));
-        
-
-        for (const attrName of VNTextboxElement.observedAttributes) {
-            if (this.hasAttribute(attrName)) {
-                this.#syncAttribute(attrName, this.getAttribute(attrName));
-            } else {
-                // Handle removal of attributes if necessary (e.g., reset styles)
-                // For simplicity, current implementation mostly relies on setting attributes
-                // this.#syncAttribute(attrName, null); // Example if removal needs explicit handling
-            }
-        };
-        this.#updateTitleVisibility(); // Ensure title visibility is correct after sync
-    }
-
-
-    #updateTitleVisibility() {
-        
-        if (!this.#titleElement) return;
-        // Use requestAnimationFrame to ensure checks happen after potential DOM updates
-        requestAnimationFrame(() => {
-            const slot = this.#titleElement.querySelector('slot[name="title"]');
-            // Check assigned nodes (elements slotted in)
-            const assignedNodes = slot ? slot.assignedNodes({ flatten: true }) : [];
-            const hasSlottedContent = assignedNodes.some(n =>
-                n.nodeType === Node.ELEMENT_NODE ||
-                (n.nodeType === Node.TEXT_NODE && n.textContent.trim() !== '')
-            );
-            // Check fallback content (set via attribute/property or default slot content)
-            const hasAttributeContent = this.hasAttribute('title') && this.getAttribute('title').trim() !== '';
-            const hasFallbackContent = slot && slot.textContent.trim() !== '';
-
-
-            // Show title if there's slotted content OR attribute content OR non-empty fallback slot content
-            this.#titleElement.style.display = (hasSlottedContent || hasAttributeContent || hasFallbackContent) ? '' : 'none';
-
+        Promise.resolve().then(() => {
+            this.display();
         });
     }
 
-    attributeChangedCallback(name, oldValue, newValue) {
-        if (!this.isConnected || oldValue === newValue) return; // Ignore if not connected or value hasn't changed
+    disconnectedCallback() {
+        Log.color("orange").italic`[${this.constructor.name}${this.uid ? ` (${this.uid})` : ''}] detached.`;
+        this.removeEventListener('click', this.#boundHandleInteraction);
+        this.removeEventListener('keydown', this.#boundKeyHandler);
+        
+        if (this.#scrollTimeoutId) clearTimeout(this.#scrollTimeoutId);
+        if (this.#currentRevealPromiseCtrl && this.#currentRevealPromiseCtrl.stop) {
+            this.#currentRevealPromiseCtrl.stop();
+        }
+        if (this.#charIntervalObserver) this.#charIntervalObserver.disconnect();
+        this.#removeDynamicCursor();
+    }
 
-        if (this.closest("vn-project")) {
-            // Handle changes on definition elements (e.g., mark as needing re-parse?)
-            // console.log(`[DEF Textbox ${this.getAttribute('uid')}] Attribute changed: ${name}`);
-        } else {
-            // Handle changes on instance elements
-            this.#syncAttribute(name, newValue);
-
-            // Special handling needed after certain attribute changes
-            if (name === "title") {
-                this.#updateTitleVisibility();
+    #renderSpeaker(speakerText = "") {
+        speakerText = speakerText.trim().replace(/\s+/g, ' ');
+        speakerText = speakerText.replace(/[_]/g, ' ');
+        if (this.speakerNameElement) {
+            const speakerSlot = this.shadowRoot.querySelector('slot[name="speaker"]');
+            if (speakerSlot && speakerSlot.assignedNodes().length > 0) {
+                this.speakerNameElement.style.display = 'none'; 
+            } else {
+                this.speakerNameElement.style.display = '';
+                this.speakerNameElement.textContent = speakerText || "";
             }
-            // If timing attributes change mid-scroll, the effect might be delayed until the next char/step.
-            // A full redisplay might be needed for immediate effect, but that could be disruptive.
+        }
+    }
+    
+    #preprocessTextNode(textNode) {
+        let text = textNode.textContent;
+        text = text.replace(/---/g, '—');
+        text = text.replace(/--/g, '–');
+        return text;
+    }
+
+    #removeDynamicCursor() {
+        if (this.#dynamicCursorElement && this.#dynamicCursorElement.parentNode) {
+            this.#dynamicCursorElement.parentNode.removeChild(this.#dynamicCursorElement);
+        }
+        this.#dynamicCursorElement = null;
+    }
+
+    #appendDynamicCursor(targetParent) {
+        this.#removeDynamicCursor();
+        this.#dynamicCursorElement = document.createElement('span');
+        this.#dynamicCursorElement.classList.add('dynamic-cursor');
+        this.#dynamicCursorElement.setAttribute('part', 'cursor dynamic-cursor');
+        const cursorChar = this.getAttribute('cursor');
+        if (cursorChar !== null) {
+             this.#dynamicCursorElement.style.setProperty('--cursor-content', cursorChar ? `"${cursorChar}"` : '""');
+        }
+       
+        targetParent.appendChild(this.#dynamicCursorElement);
+        return this.#dynamicCursorElement;
+    }
+
+    #setCursorVisibility(visible) {
+        if (this.#dynamicCursorElement) {
+            if (visible) {
+                this.#dynamicCursorElement.setAttribute('visible', '');
+            } else {
+                this.#dynamicCursorElement.removeAttribute('visible');
+            }
+        }
+    }
+    
+    #scrollTimeoutId = null;
+    #currentRevealPromiseCtrl = null;
+
+    async display(newContent = null, speaker = null) {
+        if (this.isScrolling) {
+            await this.skip(false);
+        }
+
+        this.isScrolling = false;
+        this.isComplete = false;
+        this.skipRequested = false;
+        this.#removeDynamicCursor(); 
+        if (this.#scrollTimeoutId) clearTimeout(this.#scrollTimeoutId);
+        if (this.#currentRevealPromiseCtrl && this.#currentRevealPromiseCtrl.stop) {
+            this.#currentRevealPromiseCtrl.stop();
+            this.#currentRevealPromiseCtrl = null;
+        }
+
+        this.scrollArea.innerHTML = '';
+
+        if (speaker !== null) {
+            this.setAttribute("speaker", speaker);
+        } else if (this.hasAttribute("speaker")) {
+            this.#renderSpeaker(this.getAttribute("speaker"));
+        } else {
+            this.#renderSpeaker("");
+        }
+
+        if (newContent !== null) {
+            if (typeof newContent === 'string') {
+                while (this.firstChild) { 
+                    this.removeChild(this.firstChild);
+                }
+                this.innerHTML = newContent;
+            } else if (newContent instanceof Node) {
+                while (this.firstChild) {
+                    this.removeChild(this.firstChild);
+                }
+                this.appendChild(newContent);
+            }
+            await new Promise(resolve => {
+                const onSlotChange = () => {
+                    this.sourceSlot.removeEventListener('slotchange', onSlotChange);
+                    resolve();
+                };
+                this.sourceSlot.addEventListener('slotchange', onSlotChange);
+                if (this.sourceSlot.assignedNodes({flatten: true}).length > 0 || newContent === "" || (newContent instanceof Node && newContent.textContent === "")) {
+                   resolve();
+                   this.sourceSlot.removeEventListener('slotchange', onSlotChange);
+                }
+            });
+        }
+        
+        const nodesToDisplay = this.sourceSlot.assignedNodes({ flatten: true });
+
+        if (nodesToDisplay.length > 0) {
+            this.isScrolling = true;
+            
+            const promiseControls = {};
+            const stoppablePromise = new Promise((resolve) => {
+                promiseControls.stop = () => {
+                    this.skipRequested = true;
+                    resolve();
+                };
+            });
+            this.#currentRevealPromiseCtrl = promiseControls;
+
+            try {
+                await Promise.race([
+                    this.#revealContent(nodesToDisplay, this.scrollArea),
+                    stoppablePromise
+                ]);
+            } catch (e) {
+                if (!this.skipRequested) console.error("Error during content reveal:", e);
+            } finally {
+                this.#currentRevealPromiseCtrl = null;
+            }
+            
+            if (this.skipRequested) {
+                this.scrollArea.innerHTML = '';
+                function appendFullContent(nodes, parent, textPreprocessor) {
+                    for (const node of nodes) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const processedText = textPreprocessor(node);
+                            parent.appendChild(document.createTextNode(processedText));
+                        } else {
+                            const clonedNode = node.cloneNode(true);
+                            parent.appendChild(clonedNode);
+                        }
+                    }
+                }
+                appendFullContent(nodesToDisplay, this.scrollArea, (textNode) => this.#preprocessTextNode(textNode));
+            }
+
+            this.isScrolling = false;
+            this.isComplete = true;
+            this.#appendDynamicCursor(this.scrollArea);
+            this.#setCursorVisibility(true);
+
+        } else {
+            this.isScrolling = false;
+            this.isComplete = true;
+            this.#appendDynamicCursor(this.scrollArea);
+            this.#setCursorVisibility(true);
         }
     }
 
-    // Getters and setters. State is represented via attributes
-    get top() { return this.getAttribute("top"); }
-    set top(value) { this.setAttribute("top", value); }
-    get left() { return this.getAttribute("left"); }
-    set left(value) { this.setAttribute("left", value); }
-    get bottom() { return this.getAttribute("bottom"); }
-    set bottom(value) { this.setAttribute("bottom", value); }
-    get right() { return this.getAttribute("right"); }
-    set right(value) { this.setAttribute("right", value); }
-    get width() { return this.getAttribute("width"); }
-    set width(value) { this.setAttribute("width", value); }
-    get height() { return this.getAttribute("height"); }
-    set height(value) { this.setAttribute("height", value); }
-    get color() { return this.getAttribute("color"); }
-    set color(value) { this.setAttribute("color", value); }
-    get background() { return this.getAttribute("background"); }
-    set background(value) { this.setAttribute("background", value); }
-    get ms() { return this.getAttribute("ms"); }
-    set ms(value) { this.setAttribute("ms", String(value)); }
-    get scrolling() { return this.hasAttribute("scrolling"); }
-    set scrolling(value) { this.toggleAttribute("scrolling", !!value); }
-    get unskippable() { return this.hasAttribute("unskippable"); }
-    set unskippable(value) { this.toggleAttribute("unskippable", !!value); }
-    get title() { return this.getAttribute("title"); }
-    set title(value) { this.setAttribute("title", value); }
-    get startDelay() { return this.getAttribute("start-delay"); }
-    set startDelay(value) { this.setAttribute("start-delay", String(value)); }
-    get endDelay() { return this.getAttribute("end-delay"); }
-    set endDelay(value) { this.setAttribute("end-delay", String(value)); }
-    get player() { return this.closest("vn-player"); }
-    set player(value) { throw new Error("`player` (VNPlayerElement) is read-only."); }
-    get scene() { return this.closest("vn-scene"); }
-    set scene(value) { throw new Error("`scene` (VNSceneElement) is read-only."); }
+    async #revealContent(sourceNodes, targetParent) {
+        for (const sourceNode of sourceNodes) {
+            if (this.skipRequested) {
+                const unprocessedNode = sourceNode.cloneNode(true);
+                 if (unprocessedNode.nodeType === Node.TEXT_NODE) {
+                    unprocessedNode.textContent = this.#preprocessTextNode(unprocessedNode);
+                }
+                targetParent.appendChild(unprocessedNode);
+                continue; 
+            }
 
-    // Classic JS-style getters and setters
+            if (sourceNode.nodeType === Node.ELEMENT_NODE) {
+                const newElement = sourceNode.cloneNode(false);
+                targetParent.appendChild(newElement);
+                if (sourceNode.childNodes.length > 0) {
+                    await this.#revealContent(Array.from(sourceNode.childNodes), newElement);
+                    if (this.skipRequested) {
+                    }
+                }
+            } else if (sourceNode.nodeType === Node.TEXT_NODE) {
+                const processedText = this.#preprocessTextNode(sourceNode);
+                const newTextNode = document.createTextNode('');
+                targetParent.appendChild(newTextNode);
 
-    getPlayer() { return this.player; }
-    getScene() { return this.scene; }
-    getTop() { return this.top; }
-    getLeft() { return this.left; }
-    getBottom() { return this.bottom; }
-    getRight() { return this.right; }
-    getWidth() { return this.width; }
-    getHeight() { return this.height; }
-    getColor() { return this.color; }
-    getBackground() { return this.background; }
-    getMs() { return this.ms; }
-    isScrollingEnabled() { return this.scrolling; }
-    isUnskippable() { return this.unskippable; }
-    getTitle() { return this.title; }
-    getStartDelay() { return this.startDelay; }
-    getEndDelay() { return this.endDelay; }
+                for (const char of processedText) {
+                    if (this.skipRequested) {
+                        newTextNode.textContent += processedText.substring(newTextNode.textContent.length);
+                        break; 
+                    }
+                    newTextNode.textContent += char;
+                    
+                    let delay = this.ms;
+                    if (this.charIntervals[char] !== undefined) {
+                        delay = this.charIntervals[char];
+                    } else if (char.trim() === '') {
+                        delay = 0;
+                    }
 
-    setTop(value) { this.top = value; }
-    setLeft(value) { this.left = value; }
-    setBottom(value) { this.bottom = value; }
-    setRight(value) { this.right = value; }
-    setWidth(value) { this.width = value; }
-    setHeight(value) { this.height = value; }
-    setColor(value) { this.color = value; }
-    setBackground(value) { this.background = value; }
-    setScrollingEnabled(value) { this.scrolling = value; }
-    setUnskippable(value) { this.unskippable = value; }
-    setTitle(value) { this.title = value; }
-    setMs(value) { this.ms = value; }
-    setStartDelay(value) { this.startDelay = value; }
-    setEndDelay(value) { this.endDelay = value; }
-
-    getScrollMilliseconds() { return this.ms; }
-    getStartDelayMilliseconds() { return this.startDelayMs; }
-    getEndDelayMilliseconds() { return this.endDelayMs; }
-
-    /** Removes the textbox element from the DOM and cleans up timeouts. */
-    destroy() {
-        this.#clearTimeouts();
-        this.remove();
-        this.dispatchEvent(new CustomEvent("destroy", { bubbles: false }));
+                    if (delay > 0) {
+                        await new Promise(r => this.#scrollTimeoutId = setTimeout(r, delay));
+                    } else {
+                        await new Promise(r => setTimeout(r, 0)); 
+                    }
+                }
+            }
+        }
     }
 
-    /** Manually triggers the proceed action (if possible). */
+    async skip(dispatchEvent = true) {
+        if (!this.isScrolling && this.isComplete) return;
+
+        this.skipRequested = true;
+        if (this.#scrollTimeoutId) {
+            clearTimeout(this.#scrollTimeoutId);
+            this.#scrollTimeoutId = null;
+        }
+        if (this.#currentRevealPromiseCtrl && this.#currentRevealPromiseCtrl.stop) {
+            this.#currentRevealPromiseCtrl.stop();
+        }
+
+        await Promise.resolve(); 
+
+        this.isScrolling = false;
+        this.isComplete = true;
+
+        if (dispatchEvent) {
+            this.dispatchEvent(new CustomEvent('skip', { bubbles: true, composed: true }));
+            Log.color("lightblue")`[${this.constructor.name}] event: skip`;
+        }
+    }
+
     proceed() {
-        if (!this.closest("vn-project")) {
-            this.#handleInteraction(new Event("synthetic-proceed"));
+        if (this.isComplete && !this.isScrolling) {
+            this.dispatchEvent(new CustomEvent('proceed', { bubbles: true, composed: true }));
+            Log.color("lightblue")`[${this.constructor.name}] event: proceed`;
+            this.#setCursorVisibility(false);
+        }
+    }
+    
+    #handleInteraction(event) {
+        if (this.isScrolling) {
+            this.skip();
+        } else if (this.isComplete) {
+            this.proceed();
         }
     }
 
-    /** Restarts the text display process (clears existing text, handles scrolling/delays). */
-    redisplay() {
-        if (this.isConnected && !this.closest("vn-project")) {
-            this.#updateInternalMsValues(); // Ensure timing values are current
-            requestAnimationFrame(() => {
-                this.#startDisplay(); // Restart the display logic
-            });
-        } else {
-            console.warn("VNTextbox: redisplay() called on disconnected or definition element.");
+    #handleKeyInteraction(event) {
+        if (event.key === ' ' || event.key === 'Enter') {
+            event.preventDefault();
+            this.#handleInteraction(event);
         }
     }
 }
 
-customElements.define("text-box", VNTextboxElement);
+customElements.define("text-box", VNTextBox);

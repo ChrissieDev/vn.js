@@ -64,6 +64,8 @@ export default function html(strings, ...values) {
     while (container.firstChild) {
         wrapper.appendChild(container.firstChild);
     }
+    console.log(wrapper);
+    
     return wrapper;
 }
 
