@@ -304,7 +304,7 @@ export default class VNPlayer extends HTMLElement {
          * Play an audio file. Tries to find the audio file in the project first,
          * otherwise, treats it as a URL to fetch a file.
          * @param {string | HTMLAudioElement | Audio} audio The audio to play.
-         * @param {{ volume: number, loop: boolean, wait: boolean }?} options Optional parameters to control the audio playback.
+         * @param {{ volume: number, loop: boolean, wait: boolean }} [options] Optional parameters to control the audio playback.
          * @returns 
          */
         PLAY: (
@@ -316,6 +316,21 @@ export default class VNPlayer extends HTMLElement {
         ) => {
             return new VNCommandPlay(this.currentQueue, audio, options);
         },
+
+        /**
+         * Alias for `PLAY` where `options.loop` is true by default.
+         * @param {string | HTMLAudioElement | Audio} audio 
+         * @param {{ volume: number, loop: boolean, wait: boolean }} [options]
+         */
+        PLAYMUSIC: (
+            audio,
+            options = {
+                volume: 1,
+                loop: true,
+            }
+        ) => {
+            return new VNCommandPlay(this.currentQueue, audio, options);
+        }
 
         /**
          * Add an object to the scene.
