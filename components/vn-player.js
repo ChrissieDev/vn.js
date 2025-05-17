@@ -1,5 +1,5 @@
 import VNAnimation from "../engine/VNAnimation.js";
-import VNCommandPlay from "../engine/commands/VNCommandPlay.js";
+import VNCommandPlayMedia from "../engine/commands/VNCommandPlayMedia.js";
 import { VNCommandQueue, VNCommand } from "../engine/VNCommand.js";
 import VNCommandSay from "../engine/commands/VNCommandSay.js";
 
@@ -10,6 +10,8 @@ import VNCommandTransition from "../engine/commands/VNCommandTransition.js";
 import VNCommandWait from "../engine/commands/VNCommandWait.js";
 import Time from "../utils/time.js";
 import VNCommandStyle from "../engine/commands/VNCommandStyle.js";
+import VNCommandPauseMedia from "../engine/commands/VNCommandPauseMedia.js";
+import VNCommandStopMedia from "../engine/commands/VNCommandStopMedia.js";
 
 export default class VNPlayer extends HTMLElement {
     /**
@@ -303,9 +305,8 @@ export default class VNPlayer extends HTMLElement {
         /**
          * Play an audio file. Tries to find the audio file in the project first,
          * otherwise, treats it as a URL to fetch a file.
-         * @param {string | HTMLAudioElement | Audio} audio The audio to play.
+         * @param {string | HTMLAudioElement} audio The audio to play.
          * @param {{ volume: number, loop: boolean, wait: boolean }} [options] Optional parameters to control the audio playback.
-         * @returns 
          */
         PLAY: (
             audio,
@@ -314,12 +315,12 @@ export default class VNPlayer extends HTMLElement {
                 loop: false,
             }
         ) => {
-            return new VNCommandPlay(this.currentQueue, audio, options);
+            return new VNCommandPlayMedia(this.currentQueue, audio, options);
         },
 
         /**
          * Alias for `PLAY` where `options.loop` is true by default.
-         * @param {string | HTMLAudioElement | Audio} audio 
+         * @param {string | HTMLAudioElement} audio 
          * @param {{ volume: number, loop: boolean, wait: boolean }} [options]
          */
         MUSIC: (
@@ -329,14 +330,39 @@ export default class VNPlayer extends HTMLElement {
                 loop: true,
             }
         ) => {
-            return new VNCommandPlay(this.currentQueue, audio, options);
+            return new VNCommandPlayMedia(this.currentQueue, audio, options);
+        },
+
+        /**
+         * Pause the specified audio playing in the scene.
+         * @param {string | HTMLAudioElement} audio The audio to pause. Either the uid of the audio element or the audio element itself.
+         */
+        PAUSE: (audio) => {
+            return new VNCommandPauseMedia(this.currentQueue, audio);
+        },
+
+        /**
+         * Stop the specified audio from playing in the scene.
+         * @param {string | HTMLAudioElement} audio
+         * @param {{ rewind: boolean }} [options] Optional parameters to control the audio playback.
+         */
+        STOP: (audio, options = { rewind: true }) => {
+            return new VNCommandStopMedia(this.currentQueue, audio, options);
+        },
+
+        STOP_ALL: () => {
+            // stop all audio
+            const audioElements = this.scene.querySelectorAll("audio");
+            for (const audioElement of audioElements) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
         },
 
         /**
          * Add an object to the scene.
          * @param {string | VNObject | Node} object The objec to add. Either a string with the `uid` of an existing, pre-defined object inside your project, or an element.
          * @param {{ [attribute: string]: string }} options Attributes to override on the object being added.
-         * @returns 
          */
         ADD: (object, options = {
             // any attributes to override on the object from the project
@@ -347,7 +373,6 @@ export default class VNPlayer extends HTMLElement {
         /**
          * Wait for a given amount of time, pausing execution.
          * @param {string | number} time - The time to wait in milliseconds or a string with a time unit (e.g. "2s", "500ms").
-         * @returns {VNCommandWait}
          */
         WAIT: (time) => {
             return new VNCommandWait(this.currentQueue, time);
@@ -356,13 +381,15 @@ export default class VNPlayer extends HTMLElement {
         /**
          * Inject CSS styles into the current scene.
          * @param {{ [cssProperty: string]: string } | string | HTMLStyleElement | import("./vn-style.js").default} style
-         * @returns {VNCommandStyle}
          */
         STYLE: (style) => {
             return new VNCommandStyle(this.currentQueue, style);
         },
 
-        // Simple, non-intimidating scene transitions for users that don't need anything too fancy.
+        /**
+         * Simple, non-intimidating scene transitions for users that don't need anything too fancy.
+         * @param {string} [duration] - The duration of the transition (css time string).
+         */
         FADE_IN: (duration = '5s') => {
             // ms now
             duration = Time.parse(duration);

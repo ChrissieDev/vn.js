@@ -4,8 +4,8 @@ import { VNCommand } from "../VNCommand.js";
 /**
  * Represents a call to play audio.
  */
-export default class VNCommandPlay extends VNCommand {
-    type = "play";
+export default class VNCommandPlayMedia extends VNCommand {
+    type = "playMedia";
 
     constructor(queue, target, options = { volume: 1, loop: false, autoplay: true, wait: false }) {
         super(queue);
@@ -16,13 +16,13 @@ export default class VNCommandPlay extends VNCommand {
         // set to a promise while loading so it's possible for the player to know if
         // the audio is still loading or not. we should do this with any asset that is preloadable
         // so that we can show a loading screen or something.
-        this.#preloadAudio();
+        this.#preloadMedia();
     }
 
     /**
      * Populates `this.preloadedAudio` and possibly `this.preloading` with an array of one promise (the audio loading)
      */
-    async #preloadAudio() {
+    async #preloadMedia() {
         Log`[VNCommandPlay] Preloading audio: ${this.target}`;
         // any command that depends on assets being loaded to run
         // should add promises to this array

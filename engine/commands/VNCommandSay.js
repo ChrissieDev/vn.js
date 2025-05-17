@@ -1,13 +1,8 @@
-
-import "../VNCommand.js";
-
 import VNTextBox from '../../components/text-box.js';
 import VNObject from '../../components/vn-object.js';
 import html from '../../utils/html.js';
 import {Log, as} from '../../utils/log.js';
 import { VNCommand } from '../VNCommand.js';
-
-console.log(VNCommand);
 
 /**
  * Represents a command where an object says something via a textbox.
