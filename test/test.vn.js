@@ -1,32 +1,4 @@
-/**
- * @file test/test.vn.js
- * @description A test scene to demonstrate the vn.js engine.
- */
-const style = `
-<style>
-    [blue] {
-        color: lightblue;
-    }
-
-    [glow] {
-        color: #fff; /* Color of the text itself */
-        background-color: transparent; /* Optional: Dark background to see the glow better */
-        padding: 10px; /* Optional: Just for better display */
-        font-size: 24px; /* Optional: Make text bigger */
-        text-shadow:
-            0 0 5px #fff,
-            0 0 10px #fff,
-            0 0 15px #fff,
-            0 0 20px #0ff,
-            0 0 30px #0ff,
-            0 0 40px #0ff;
-    }
-</style>
-`;
-
-document.head.insertAdjacentHTML("beforeend", style);
-
-// Running a scene.
+// Example: Running a scene.
 START(
     ADD('kacey'),
     ADD('classroom-front-day'),
@@ -34,11 +6,8 @@ START(
     FADE_IN("2s"),
     WAIT('500ms'),
 
-    // Plays <audio> using an UID, and optionally pass in options.
-    PLAY("everyday", { volume: 0.3 }),
+    PLAY("everyday", { volume: 0.1 }),
     
-
-    // Character dialogue using the character's UID as defined in the project.
     kacey 
     `This class is so lame. I wish I was at home playing <i blue>The Sims 4</i> all fucking day.`,
 

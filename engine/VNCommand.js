@@ -6,6 +6,7 @@ import { Log } from "../utils/log.js";
  * Generic command class meant to be extended. Throws an error by default when executed.
  */
 export class VNCommand {
+
     type = null;
 
     /**
@@ -32,7 +33,15 @@ export class VNCommand {
      * @returns {Promise<any>}
      */
     execute() {
-        throw new Error("execute() not implemented");
+        throw new Error(`[${this.constructor.name}] execute() not implemented. Must be overridden in the subclass.`);
+    }
+
+    /**
+     * @abstract
+     * @param {{ type: string }} object 
+     */
+    deserialize(object) {
+        throw new Error(`[${this.constructor.name}] deserialize() not implemented. Must be overridden in the subclass.`);
     }
 }
 

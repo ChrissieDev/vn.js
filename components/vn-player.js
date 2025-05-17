@@ -9,6 +9,7 @@ import VNCommandAddObject from "../engine/commands/VNCommandAddObject.js";
 import VNCommandTransition from "../engine/commands/VNCommandTransition.js";
 import VNCommandWait from "../engine/commands/VNCommandWait.js";
 import Time from "../utils/time.js";
+import VNCommandStyle from "../engine/commands/VNCommandStyle.js";
 
 export default class VNPlayer extends HTMLElement {
     /**
@@ -262,6 +263,10 @@ export default class VNPlayer extends HTMLElement {
      * to the scene script. Each property is copied over to this.#runtime
      */
     #runtimeAPI = {
+        /**
+         * Run a scene with the given commands. Either takes an array of commands, or a VNCommandQueue. Variadic VNCommands are also supported.
+         * @param  {VNCommand[] | VNCommandQueue[] | VNCommandQueue | JsonApiCommmand[]} args The commands to run.  
+         */
         START: (...args) => {
             const length = args.length;
 
@@ -295,25 +300,51 @@ export default class VNPlayer extends HTMLElement {
             });
         },
 
-        // PLAY('someSong')
+        /**
+         * Play an audio file. Tries to find the audio file in the project first,
+         * otherwise, treats it as a URL to fetch a file.
+         * @param {string | HTMLAudioElement | Audio} audio The audio to play.
+         * @param {{ volume: number, loop: boolean, wait: boolean }?} options Optional parameters to control the audio playback.
+         * @returns 
+         */
         PLAY: (
-            uid,
+            audio,
             options = {
                 volume: 1,
                 loop: false,
             }
         ) => {
-            return new VNCommandPlay(this.currentQueue, uid, options);
+            return new VNCommandPlay(this.currentQueue, audio, options);
         },
 
+        /**
+         * Add an object to the scene.
+         * @param {string | VNObject | Node} object The objec to add. Either a string with the `uid` of an existing, pre-defined object inside your project, or an element.
+         * @param {{ [attribute: string]: string }} options Attributes to override on the object being added.
+         * @returns 
+         */
         ADD: (object, options = {
             // any attributes to override on the object from the project
         }) => {
             return new VNCommandAddObject(this.currentQueue, object, options);
         },
 
+        /**
+         * Wait for a given amount of time, pausing execution.
+         * @param {string | number} time - The time to wait in milliseconds or a string with a time unit (e.g. "2s", "500ms").
+         * @returns {VNCommandWait}
+         */
         WAIT: (time) => {
             return new VNCommandWait(this.currentQueue, time);
+        },
+
+        /**
+         * Inject CSS styles into the current scene.
+         * @param {{ [cssProperty: string]: string } | string | HTMLStyleElement | import("./vn-style.js").default} style
+         * @returns {VNCommandStyle}
+         */
+        STYLE: (style) => {
+            return new VNCommandStyle(this.currentQueue, style);
         },
 
         // Simple, non-intimidating scene transitions for users that don't need anything too fancy.

@@ -1,0 +1,24 @@
+{
+  "name": "vn",
+  "version": "1.0.0",
+  "description": "An embeddable and extensible visual novel engine and player for the web.",
+  "main": "vn.js",
+  "type": "module",
+  "exports": {
+    ".": "./vn.js",
+    "./engine": "./engine/index.js",
+    "./components": "./components/index.js"
+  },
+  "types": "types.d.ts",
+  "directories": {
+    "test": "test",
+    "components": "components",
+    "engine": "engine"
+  },
+  "scripts": {
+    
+  },
+  "keywords": [],
+  "author": "mkgiga",
+  "license": "MIT"
+}
