@@ -40,7 +40,7 @@ export default class VNCommandPlayMedia extends VNCommand {
             target = target.trim();
 
             // 1. Assume this is a UID and get it from the project.
-            const projectObject = this.queue.player.cloneObjectDefinition(target);
+            let projectObject = this.queue.player.cloneObjectDefinition(target);
 
             // 2. We found it!
             if (projectObject) {
@@ -82,35 +82,46 @@ export default class VNCommandPlayMedia extends VNCommand {
         const options = this.options;
 
         return new Promise(async (resolve, reject) => {
-            const preloadedAudio = this.preloadedAudio;
+            let audioToPlay = this.preloadedAudio;
 
-            if (preloadedAudio instanceof Promise) {
-                await preloadedAudio;
+            if (audioToPlay instanceof Promise) {
+                await audioToPlay;
             }
 
-            preloadedAudio.volume = options.volume;
-            preloadedAudio.loop = options.loop;
-            preloadedAudio.autoplay = options.autoplay;
+            audioToPlay.volume = options.volume;
+            audioToPlay.loop = options.loop;
+            audioToPlay.autoplay = options.autoplay;
             
+            let foundInScene = false;
+
+            // First check if the scene has this audio element already
+            const existingAudio = this.queue.player.scene.querySelector(`audio[uid="${audioToPlay.getAttribute("uid")}"]`);
+
+            if (existingAudio) {
+                Log`[VNCommandPlay] Audio already exists in the scene, reusing...`;
+                audioToPlay = existingAudio;
+                foundInScene = true;
+            }
+            audioToPlay.setAttribute("cloned", "");
             // The audio element has to be in the DOM for later cleanup
-            preloadedAudio.setAttribute("cloned", "");
-            this.queue.player.scene.appendChild(preloadedAudio);
+            if (!foundInScene) {
+                
+                this.queue.player.scene.appendChild(audioToPlay);
+            }
             
             if (options.wait) {
-                preloadedAudio.addEventListener("ended", () => {
+                audioToPlay.addEventListener("ended", () => {
                     Log`[VNCommandPlay] Audio ended.`;
                     resolve(true);
                 });
                 
-                preloadedAudio.play().catch((e) => {
+                audioToPlay.play().catch((e) => {
                     Log.color("#ff6666")`[VNCommandPlay] Error playing audio: ${e}`;
                 });
                 
-                
-
-                preloadedAudio.play();
+                audioToPlay.play();
             } else {
-                preloadedAudio.play().catch((e) => {
+                audioToPlay.play().catch((e) => {
                     Log.color("#ff6666")`[VNCommandPlay] Error playing audio: ${e}`;
                 });
                 

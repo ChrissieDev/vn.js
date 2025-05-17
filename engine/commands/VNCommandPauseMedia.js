@@ -23,7 +23,7 @@ export default class VNCommandPauseMedia extends VNCommand {
             const audio = this.audio;
 
             if (typeof audio === "string") {
-                const audioElement = scene.shadowRoot.querySelector(`audio[uid="${audio}"]`);
+                const audioElement = scene.querySelector(`audio[uid="${audio}"]`);
                 if (audioElement) {
                     audioElement.pause();
                 } else {

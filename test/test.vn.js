@@ -26,6 +26,8 @@ START(
     Mysterious_Figure
     `You do not understand. You are in great danger, Kacey.`,
 
+    PAUSE("everyday"),
+
     kacey
     `Yeah, I know. I'm totally failing trig.`,
 
@@ -33,6 +35,8 @@ START(
     `No, I mean you are in danger of losing your life.`,
 
     "Kacey whips her head around, slinging her long, blonde hair over her shoulder. She clicks her tongue and rolls her eyes.",
+    
+    PLAY("everyday", { volume: 0.1 }),
 
     kacey
     `Actually, you're the one in danger. I have a 4.0 GPA and a 3.8 SAT score. I could get into any college I want. I could even get into Harvard.`,

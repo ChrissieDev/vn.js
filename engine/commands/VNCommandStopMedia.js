@@ -1,4 +1,4 @@
-import VNCommand from "../VNCommand.js";
+import {VNCommand} from "../VNCommand.js";
 
 export default class VNCommandStopMedia extends VNCommand {
     type = "stopMedia";
@@ -20,7 +20,7 @@ export default class VNCommandStopMedia extends VNCommand {
         return new Promise((resolve) => {
             const audio = this.audio;
             const scene = this.queue.player.scene;
-            
+
             if (typeof audio === "string") {
                 const audioElement = scene.shadowRoot.querySelector(`audio[uid="${audio}"]`);
 
