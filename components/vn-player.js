@@ -322,7 +322,7 @@ export default class VNPlayer extends HTMLElement {
          * @param {string | HTMLAudioElement | Audio} audio 
          * @param {{ volume: number, loop: boolean, wait: boolean }} [options]
          */
-        PLAYMUSIC: (
+        MUSIC: (
             audio,
             options = {
                 volume: 1,
@@ -330,7 +330,7 @@ export default class VNPlayer extends HTMLElement {
             }
         ) => {
             return new VNCommandPlay(this.currentQueue, audio, options);
-        }
+        },
 
         /**
          * Add an object to the scene.
