@@ -15,30 +15,12 @@ export default class VNTextBox extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    /* Base positioning and sizing variables with defaults */
-                    --left: auto;
-                    --right: auto;
-                    --top: auto;
-                    --bottom: auto;
-                    --width: auto;
-                    --height: auto;
-
                     /* Default visual style variables */
                     --background: rgba(0, 0, 0, 0.75);
                     --border-radius: 0.5em;
                     --border: 2px solid rgba(255, 255, 255, 0.2);
                     --box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
                     
-                    --max-height: 90%; /* Default max height if height is auto */
-                    --max-width: 90%;  /* Default max width if width is auto */
-                    
-                    /* Default Dialogue Box Appearance (if not fully constrained by top/bottom/left/right) */
-                    --default-dialogue-width: 90%;
-                    --default-dialogue-height: auto;
-                    --default-dialogue-max-height: 35%;
-                    --default-dialogue-bottom: 5%;
-                    --default-dialogue-left: 50%; /* For centering with transform */
-
                     /* Cursor */
                     --cursor-content: "▶";
                     --cursor-blink-speed: 0.7s;
@@ -74,25 +56,33 @@ export default class VNTextBox extends HTMLElement {
                     --choice-button-font-size: 0.95em;
                     --choice-button-font-family: var(--content-font-family);
                     --choice-button-text-align: center;
-                    --choice-button-width: 100%;
+                    --choice-button-width: 100%; /* Buttons inside choices container take full width */
                     --choice-inline-content-padding: 0.5em 0;
                     --choice-inline-content-text-align: var(--content-text-align);
 
-                    display: flex;
-                    flex-flow: column nowrap;
-                    position: absolute;
-                    box-sizing: border-box;
-                    overflow: hidden;
-                    
+                    /* Core Positioning & Sizing: these will use CSS variables set by attributes */
+                    /* If a variable like --left is not set, 'left' will be 'auto' (its initial value) */
                     left: var(--left);
                     right: var(--right);
                     top: var(--top);
                     bottom: var(--bottom);
                     width: var(--width);
                     height: var(--height);
-                    max-width: var(--max-width);
-                    max-height: var(--max-height);
+                    max-width: var(--max-width); /* Defaults to 'none' if --max-width not set */
+                    max-height: var(--max-height);/* Defaults to 'none' if --max-height not set */
+                    
+                    /* Transform values, to be set by [centered] attributes */
+                    --translateX-val: 0%;
+                    --translateY-val: 0%;
+                    transform: translateX(var(--translateX-val)) translateY(var(--translateY-val));
 
+
+                    display: flex;
+                    flex-flow: column nowrap;
+                    position: absolute;
+                    box-sizing: border-box;
+                    overflow: hidden; /* Essential */
+                    
                     background: var(--background);
                     border-radius: var(--border-radius);
                     border: var(--border);
@@ -101,52 +91,19 @@ export default class VNTextBox extends HTMLElement {
                     container-type: inline-size;
                     container-name: text-box-container;
                 }
-
-                /* Default state (like a dialogue box) if not enough constraints are given by positioning attributes */
-                :host(:not([style*="left:"]):not([style*="right:"])[style*="width: auto"], /* If width is auto and L/R not set*/
-                      :not([style*="left:"])[style*="width: auto"]:not([centeredY])) { /* Or L not set and width auto & not centered vertically */
-                    left: var(--default-dialogue-left); /* Apply default left for dialogue */
-                    transform: translateX(-50%); /* Center it if left is 50% */
-                }
-                 :host([style*="left: 50%"][style*="width: auto"]:not([style*="right:"])) { /* Explicitly left:50% width:auto */
-                     transform: translateX(-50%);
-                 }
-
-
-                :host(:not([style*="width:"])) { /* If width attribute/var is not set at all */
-                    width: var(--default-dialogue-width);
-                }
-                :host(:not([style*="height:"])) { /* If height attribute/var is not set at all */
-                    height: var(--default-dialogue-height);
-                }
-                 :host(:not([style*="max-height:"])) { /* If max-height attribute/var is not set at all */
-                    max-height: var(--default-dialogue-max-height);
-                }
-
-                :host(:not([style*="top:"])[style*="height: auto"], /* If height is auto and top not set */
-                      :not([style*="bottom:"])[style*="height: auto"]) { /* Or bottom not set and height auto */
-                    bottom: var(--default-dialogue-bottom); /* Apply default bottom for dialogue */
-                }
-
-
+                
                 :host([centered]) {
-                    left: 50%;
-                    right: auto; /* Override if right was also set, centered takes precedence for left */
-                    transform: translateX(-50%) translateY(var(--translateY, 0%));
+                    --translateX-val: -50%;
+                    left: 50%; /* Apply left: 50% when centered is present, overriding var(--left) */
                 }
                 :host([centeredY]) {
-                    top: 50%;
-                    bottom: auto; /* Override if bottom was also set */
-                    /* transform: translateY(-50%) translateX(var(--translateX, 0%));
-                        translateX is handled by :host([centered]) or direct style */
-                    --translateY: -50%; /* Store Y translation for combined transform */
-                    transform: translateX(var(--translateX, 0%)) translateY(-50%);
-
+                    --translateY-val: -50%;
+                    top: 50%; /* Apply top: 50% when centeredY is present */
                 }
+                /* Combined centering needs to ensure transform is applied correctly */
                 :host([centered][centeredY]) {
-                     left: 50%; top: 50%;
-                     right: auto; bottom: auto;
-                     transform: translate(-50%, -50%);
+                    /* left: 50% and top: 50% are set by individual [centered] and [centeredY] rules */
+                    /* transform is already handled by --translateX-val and --translateY-val */
                 }
 
 
@@ -179,8 +136,8 @@ export default class VNTextBox extends HTMLElement {
                 }
 
                 .content-wrapper {
-                    display: flex; /* Changed to flex */
-                    flex-direction: column; /* Ensure children stack vertically */
+                    display: flex; 
+                    flex-direction: column; 
                     width: 100%;
                     flex-grow: 1;
                     padding: var(--content-padding);
@@ -205,13 +162,12 @@ export default class VNTextBox extends HTMLElement {
                 }
 
                 #scroll-area {
-                    flex-grow: 1; /* Allows scroll-area to take available space */
+                    flex-grow: 1; 
                     color: var(--content-color);
                     font-size: max(16px, var(--content-font-size, 2.5cqi));
                     font-family: var(--content-font-family);
                     font-weight: var(--content-font-weight);
                     text-align: var(--content-text-align);
-                    /* padding-bottom: var(--content-padding); Removed, content-wrapper has overall padding */
                     box-sizing: border-box;
                     overflow-wrap: break-word; 
                     word-break: break-word;  
@@ -222,7 +178,7 @@ export default class VNTextBox extends HTMLElement {
                     margin-bottom: 0.75em;
                 }
                 #scroll-area p:last-child, #scroll-area div:not(.choices-container):not(.choice-prompt):not(.choice-inline-content):last-child {
-                    margin-bottom: 0; /* No margin for the very last item, cursor handles spacing */
+                    margin-bottom: 0; 
                 }
                 #scroll-area strong, #scroll-area b { font-weight: bold; }
                 #scroll-area em, #scroll-area i { font-style: italic; }
@@ -269,7 +225,7 @@ export default class VNTextBox extends HTMLElement {
 
                 .choice-button {
                     display: block; 
-                    width: var(--choice-button-width);
+                    width: var(--choice-button-width); /* This uses the CSS var */
                     margin: var(--choice-button-margin);
                     padding: var(--choice-button-padding);
                     background: var(--choice-button-background);
@@ -304,8 +260,6 @@ export default class VNTextBox extends HTMLElement {
                     overflow-wrap: break-word;
                     word-break: break-word;
                 }
-
-
             </style>
 
             <div class="header" part="header">
@@ -348,8 +302,8 @@ export default class VNTextBox extends HTMLElement {
         return [
             "speaker", "uid", "ms",
             "left", "right", "top", "bottom", "width", "height", 
-            "max-width", "max-height", // Added max-width and max-height
-            "centered", "centeredY", // Added centeredY
+            "max-width", "max-height", 
+            "centered", "centeredY", 
             "cursor", "content-padding"
         ];
     }
@@ -379,19 +333,14 @@ export default class VNTextBox extends HTMLElement {
             this.ms = parseInt(newValue, 10) || 25;
         } else if (name === "speaker") {
             this.#renderSpeaker(newValue);
-        } else if (name === "centered" || name === "centeredY") {
-            // CSS :host([attr]) selectors handle this automatically.
-            // For combined transforms, we set CSS variables.
-            if (name === "centeredY") {
-                this.style.setProperty('--translateY', newValue !== null ? '-50%' : '0%');
-            }
-            if (name === "centered" && this.hasAttribute('centeredY')) { // ensure Y translate persists
-                 this.style.setProperty('--translateX', newValue !== null ? '-50%' : '0%');
-            } else if (name === "centered") {
-                 this.style.setProperty('--translateX', newValue !== null ? '-50%' : '0%');
-            }
-
-
+        } else if (name === "centered") {
+            this.style.setProperty('--translateX-val', newValue !== null ? '-50%' : '0%');
+            if (newValue !== null) this.style.setProperty('left', '50%'); // Explicitly set left for centering
+            // else if (!this.hasAttribute('left')) this.style.removeProperty('left'); // Revert to var(--left) if centered removed
+        } else if (name === "centeredY") {
+            this.style.setProperty('--translateY-val', newValue !== null ? '-50%' : '0%');
+            if (newValue !== null) this.style.setProperty('top', '50%');
+            // else if (!this.hasAttribute('top')) this.style.removeProperty('top');
         } else if (VNTextBox.nonCssAttributes.includes(name)) {
             // Other non-CSS attributes if any
         } else if (name === "cursor") {
@@ -401,12 +350,12 @@ export default class VNTextBox extends HTMLElement {
                  this.#dynamicCursorElement.style.setProperty('--cursor-content', cursorValue);
             }
         } else if (name === "content-padding") {
-             this.style.setProperty(`--${name}`, newValue); // e.g. --content-padding
-             this.style.setProperty('--fade-distance', newValue); // Link fade-distance
+             this.style.setProperty(`--${name}`, newValue); 
+             this.style.setProperty('--fade-distance', newValue); 
         }
         else { // CSS variable attributes (left, right, top, bottom, width, height, max-width, max-height)
             const cssVarName = `--${name}`;
-            if (newValue === null) { // Attribute removed
+            if (newValue === null) { 
                 this.style.removeProperty(cssVarName);
             } else {
                 this.style.setProperty(cssVarName, newValue);
@@ -450,7 +399,6 @@ export default class VNTextBox extends HTMLElement {
     connectedCallback() {
         Log.color("lightgreen").italic`[${this.constructor.name}${this.uid ? ` (${this.uid})` : ''}] attached.`;
 
-        // Apply initial attribute values to CSS variables
         VNTextBox.observedAttributes.forEach(attr => {
             if (this.hasAttribute(attr)) {
                  this.attributeChangedCallback(attr, null, this.getAttribute(attr));
@@ -458,13 +406,12 @@ export default class VNTextBox extends HTMLElement {
                  this.attributeChangedCallback(attr, null, null);
             }
         });
-         // Ensure default fade distance if content-padding not set
-        if (!this.hasAttribute('content-padding') && !this.style.getPropertyValue('--content-padding')) {
-            this.style.setProperty('--fade-distance', '1em'); // fallback if var(--content-padding) is unset
+        if (!this.style.getPropertyValue('--content-padding') && !this.hasAttribute('content-padding')) {
+            this.style.setProperty('--fade-distance', '1em');
         }
 
 
-        this.#updateAllCharIntervalsFromAttributes(); // For ms:char attributes
+        this.#updateAllCharIntervalsFromAttributes(); 
 
         this.#charIntervalObserver = new MutationObserver(mutationsList => {
             for (const mutation of mutationsList) {
@@ -498,7 +445,7 @@ export default class VNTextBox extends HTMLElement {
 
         if (this.#isChoiceMode && this.#choicePromiseCtrl && this.#choicePromiseCtrl.reject) {
             this.#choicePromiseCtrl.reject(new Error("Text box detached during choice."));
-            this.#cleanUpChoiceMode(false); // Don't try to restore speaker if detaching
+            this.#cleanUpChoiceMode(false); 
         }
     }
 
@@ -559,7 +506,7 @@ export default class VNTextBox extends HTMLElement {
 
     #scrollTimeoutId = null;
     #currentRevealPromiseCtrl = null;
-    #previousSpeakerForChoice = null; // Store speaker before choice mode
+    #previousSpeakerForChoice = null; 
 
     async display(newContent = null, speaker = undefined) { 
         if (this.#isChoiceMode) {
@@ -861,7 +808,7 @@ export default class VNTextBox extends HTMLElement {
 
             this.isComplete = false;
             this.#removeDynamicCursor();
-            this.setAttribute('speaker', ''); // Hide speaker area during choices
+            this.setAttribute('speaker', ''); 
 
 
             this.scrollArea.innerHTML = '';
@@ -914,8 +861,7 @@ export default class VNTextBox extends HTMLElement {
                         if (this.#choicePromiseCtrl) {
                             this.#choicePromiseCtrl.resolve(vnOption.innerQueue);
                         }
-                        this.#cleanUpChoiceMode(); // This will restore speaker
-                        // The command itself will remove the textbox element.
+                        // this.#cleanUpChoiceMode(); // Clean up will be handled by the command that removes the textbox
                     });
                     choicesContainer.appendChild(button);
                 } else if (item.type === 'content') {

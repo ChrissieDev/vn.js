@@ -1,7 +1,6 @@
 import {Log} from "../utils/log.js";
 
 export default class VNScene extends HTMLElement {
-    
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
@@ -69,7 +68,6 @@ export default class VNScene extends HTMLElement {
                     justify-content: flex-end; 
                     align-items: center; 
                 }
-
             </style>
             
             <div class="hidden-slot">

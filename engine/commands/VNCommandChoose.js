@@ -1,7 +1,7 @@
 import VNCommandModule from "../VNCommand.js";
 import VNCommandOption from "./VNCommandOption.js";
 import { Log } from "../../utils/log.js";
-import VNTextBox from "../../components/text-box.js"; // For instanceof check
+import VNTextBox from "../../components/text-box.js"; 
 
 export default class VNCommandChoose extends VNCommandModule.VNCommand {
     type = "choose";
@@ -66,20 +66,22 @@ export default class VNCommandChoose extends VNCommandModule.VNCommand {
             Log.info(`[VNCommandChoose] No choicebox definition found. Creating a temporary one.`);
             choiceBox = document.createElement('text-box');
             choiceBox.setAttribute('uid', 'temp-choice-box-' + Date.now());
-            // Apply default styling for a newly created choice box
-            choiceBox.setAttribute('centered', ''); 
-            choiceBox.setAttribute('centeredY', ''); 
-            choiceBox.style.setProperty('--width', 'fit-content');
-            choiceBox.style.setProperty('--max-width', '70%'); 
-            choiceBox.style.setProperty('--min-width', '200px'); // Ensure some min width
-            choiceBox.style.setProperty('--height', 'fit-content');
-            choiceBox.style.setProperty('--max-height', '80%');
-            choiceBox.style.setProperty('--min-height', '100px'); // Ensure some min height
+            
+            // Apply default attributes for a choice box
+            if (!choiceBox.hasAttribute('centered')) choiceBox.setAttribute('centered', 'true');
+            if (!choiceBox.hasAttribute('centeredY')) choiceBox.setAttribute('centeredY', 'true');
+            if (!choiceBox.hasAttribute('width')) choiceBox.setAttribute('width', 'fit-content'); // fit-content is not a standard value for width, use e.g. 'auto' or specific like '50%'
+            if (!choiceBox.hasAttribute('width')) choiceBox.style.setProperty('--width', 'auto'); // Use CSS var for auto to allow content to size it
+            if (!choiceBox.hasAttribute('min-width')) choiceBox.setAttribute('min-width', '200px');
+            if (!choiceBox.hasAttribute('max-width')) choiceBox.setAttribute('max-width', '70%');
+            if (!choiceBox.hasAttribute('height')) choiceBox.setAttribute('height', 'auto'); // auto height for choices
+            if (!choiceBox.hasAttribute('max-height')) choiceBox.setAttribute('max-height', '80%');
+             Log.info(`[VNCommandChoose] Created a new temporary choice-box with defaults.`);
         }
 
-        if (scene && !choiceBox.isConnected) { // Add to scene if not already (cloned or new)
+        if (scene && !choiceBox.isConnected) { 
             scene.appendChild(choiceBox);
-            await new Promise(resolve => requestAnimationFrame(resolve)); // Wait for connection
+            await new Promise(resolve => requestAnimationFrame(resolve)); 
         }
 
         try {
@@ -95,10 +97,9 @@ export default class VNCommandChoose extends VNCommandModule.VNCommand {
             Log.error(`[VNCommandChoose] Error during choice prompting:`, error);
             return null;
         } finally {
-            // Always remove the choiceBox after it's used
             if (choiceBox && choiceBox.isConnected) {
                 choiceBox.remove();
-                Log.info(`[VNCommandChoose] Removed choiceBox.`);
+                Log.info(`[VNCommandChoose] Removed choiceBox (UID: ${choiceBox.uid}).`);
             }
         }
     }

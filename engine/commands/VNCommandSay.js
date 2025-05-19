@@ -51,22 +51,26 @@ export default class VNCommandSay extends VNCommand {
                 }
             }
 
-            if (!textbox) {
+            if (!textbox) { 
                 textbox = document.createElement("text-box");
                 textbox.setAttribute("uid", `temp-say-box-${Date.now()}`);
-                // Default styling for a dialogue box (typically at bottom, centered horizontally)
-                // The component's internal CSS defaults should handle most of this if attributes aren't set.
-                // For narrator, we might want it centered by default.
-                if (!this.uid) { // Narrator
-                    textbox.setAttribute('centered', '');
-                    // Potentially adjust vertical position for narrator if needed, e.g.
-                    // textbox.style.setProperty('--bottom', 'auto');
-                    // textbox.setAttribute('centeredY', '');
-                } else {
-                    // For characters, rely on default bottom positioning or specific definition.
-                    // The component CSS has defaults like bottom: 5%, width: 90%, left: 50% (transformed)
+                
+                // Apply default attributes for a dialogue box if created dynamically
+                if (!textbox.hasAttribute('width')) textbox.setAttribute('width', '90%');
+                if (!textbox.hasAttribute('height')) textbox.setAttribute('height', 'auto'); // Usually auto for dialogue
+                if (!textbox.hasAttribute('max-height')) textbox.setAttribute('max-height', '35%');
+                if (!textbox.hasAttribute('bottom')) textbox.setAttribute('bottom', '5%');
+
+                if (!this.uid) { // Narrator specific defaults
+                    if (!textbox.hasAttribute('centered')) textbox.setAttribute('centered', 'true');
+                     // If narrator and centered, left is set to 50% by the component due to [centered]
+                } else { // Character specific defaults (if not centered by narrator rule)
+                    if (!textbox.hasAttribute('left') && !textbox.hasAttribute('centered')) {
+                        // Default to centered if no left attribute and not already centered
+                         textbox.setAttribute('centered', 'true');
+                    }
                 }
-                Log.info(`[VNCommandSay] Created a new temporary text-box for SAY.`);
+                Log.info(`[VNCommandSay] Created a new temporary text-box for SAY with defaults.`);
             }
             
             if (!textbox.isConnected) {
@@ -77,10 +81,9 @@ export default class VNCommandSay extends VNCommand {
 
             const onProceed = () => {
                 textbox.removeEventListener("proceed", onProceed);
-                Log`[VNCommandSay] Proceeding for UID: ${this.uid || 'narrator'}`;
                 if (textbox && textbox.isConnected) {
-                    textbox.remove(); // Always remove the textbox after SAY
-                    Log.info(`[VNCommandSay] Removed SAY text-box.`);
+                    textbox.remove(); 
+                    Log.info(`[VNCommandSay] Removed SAY text-box (UID: ${textbox.uid}).`);
                 }
                 resolve(true);
             };
@@ -89,7 +92,7 @@ export default class VNCommandSay extends VNCommand {
             const speakerDisplayName = this.#speakerNameForDisplay !== null ? this.#speakerNameForDisplay : (this.uid || "");
 
             try {
-                textbox.style.display = ''; // Ensure it's visible
+                textbox.style.display = ''; 
                 await textbox.display(this.text, speakerDisplayName);
             } catch (error) {
                  Log.error(`[VNCommandSay] Error during textbox.display():`, error);
