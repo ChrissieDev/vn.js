@@ -36,8 +36,6 @@ START(
             `You hear her muffled voice talking to someone else inside the classroom. You sigh and open the door anyway.`,
         ),
         
-        "<span style=\"transform: rotate(180deg);\">Testing: <img src='https://wikimedia.org/api/rest_v1/media/math/render/svg/0f2b5a3c4d7e8f6b9a0c1d4e2f3a5b8c7d4e5f6b' style='width: 100px; height: 100px;' /></span>",
-
         OPTION("<i style='color: #fff; text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #0ff, 0 0 30px #0ff, 0 0 40px #0ff;'>Go home</i>",
             you
             `Actually, I don't really feel like going to class today. I think I'll just go home.`,
