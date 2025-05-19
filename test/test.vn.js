@@ -5,10 +5,42 @@ START(
     ADD("kacey"),
     ADD("classroom-front-day"),
 
-    FADE_IN("2s"),
-    WAIT("500ms"),
+    FADE_IN("1s"),
+    WAIT("200ms"),
 
     PLAY("everyday", { volume: 0.1 }),
+
+    // new: CHOOSE & OPTION
+    // 
+    // CHOOSE: the args can be either a string or a VNCommandOption object returned by the OPTION function
+    // there is no defined order of the args. you can have a string as the first argument, or anywhere in-between or at the end
+    // but typically you'd put the string first to add some text prompt related to the choices
+    //
+    // OPTION: the first arguments is the button text for the choice. a <button> is created automatically with the text inside as a text node
+    // if the first argument is a valid HTML string, it becomes a real element and a click event listener is added to it to make it work
+    // the rest of the arguments are variadic arguments for a VNCommandQueue instance to nest into if the user clicks the button.
+    // these arguments are passed to the VNCommandQueue constructor just like START/IF/ELIF/ELSE, etc.
+    //
+    // extra suggestions:
+    // what if we allow VNCommandIf/VNCommandElseIf/VNCommandElse to conditionally render the button text?
+    // we might have to change how the conditionals' command classes are structured to allow for this since they're designed only to
+    // work within a VNCommandQueue
+    CHOOSE("Your classroom door is right there.",
+        OPTION("Open the door",
+            you
+            `I hope Kacey's absent today. I don't want to deal with her bullshit.`,
+
+            _
+            `You hear her muffled voice talking to someone else inside the classroom. You sigh and open the door anyway.`,
+        ),
+        OPTION("Go home",
+            you
+            `Actually, I don't really feel like going to class today. I think I'll just go home.`,
+            
+            _
+            `You turn around and walk away from the school. You don't care if you get in trouble. You have Diamond promos to play.`
+        )
+    ),
 
     kacey
     `Lorem ipsum dolor sit amet, consectetur adipiscing elit. In purus enim, hendrerit et lorem et, cursus sodales urna. Phasellus tristique justo in semper facilisis. Interdum et malesuada fames ac ante ipsum primis in faucibus. Praesent ullamcorper auctor nunc. Nullam ac orci tincidunt, venenatis nibh vel, imperdiet metus. In egestas dui ut ligula tristique ullamcorper. Praesent ac enim justo. Praesent eget fermentum elit, vitae suscipit justo.
@@ -67,7 +99,6 @@ Aliquam tristique libero eu felis molestie scelerisque. Nulla consectetur urna u
         kacey `Foo`,
         kacey `A`,
         kacey `1`,
-
     ),
     // this is evaluated at parse time since there's no way to at runtime (the original expression is not preserved), checked at runtime and ran if truthy
     ELIF((test === "bar"),
@@ -89,8 +120,6 @@ Aliquam tristique libero eu felis molestie scelerisque. Nulla consectetur urna u
         kacey `D`,
         kacey `4`,
     ),
-
-        
 
     FADE_OUT("2s")
 );
