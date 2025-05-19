@@ -30,7 +30,7 @@ export default class VNTextBox extends HTMLElement {
                     --content-font-family: "Helvetica", "Arial", sans-serif;
                     --content-font-weight: 400;
                     --content-text-align: left;
-                    --content-padding: 1em;
+                    --content-padding: 1em; /* Base padding */
                     --content-line-height: 1.6;
                     
                     --speaker-color: #fff;
@@ -41,6 +41,9 @@ export default class VNTextBox extends HTMLElement {
                     --speaker-padding: 0.5em 1em;
                     --speaker-background: rgba(0, 0, 0, 0.3);
                     
+                    /* Fade mask distance, set to content padding by default */ /*marker*/
+                    --fade-distance: var(--content-padding, 1em); /*marker*/
+
                     display: flex; 
                     flex-flow: column nowrap;
                     position: absolute;
@@ -64,7 +67,7 @@ export default class VNTextBox extends HTMLElement {
                     padding: 0;
                     
                     box-sizing: border-box;
-                    overflow: hidden;
+                    overflow: hidden; /* Hide overflow of the main component */
 
                     container-type: inline-size;
                     container-name: text-box-container;
@@ -84,6 +87,7 @@ export default class VNTextBox extends HTMLElement {
                     padding: var(--speaker-padding);
                     background: var(--speaker-background);
                     box-sizing: border-box;
+                    z-index: 1; /* Ensure header is above scrolled content */ /*marker*/
                 }
 
                 .speaker-name {
@@ -97,15 +101,32 @@ export default class VNTextBox extends HTMLElement {
                 }
 
                 .content-wrapper {
-                    display: flex; /* Keep flex for overall structure if needed */
+                    display: flex;
                     width: 100%;
                     flex-grow: 1; 
-                    padding: var(--content-padding);
+                    padding: var(--content-padding); /* Padding around the scroll area */ /*marker*/
                     background: var(--content-background); 
                     box-sizing: border-box;
-                    overflow-y: auto; 
+                    overflow-y: auto; /* Enable scrolling */ /*marker*/
                     line-height: var(--content-line-height);
                     user-select: none;
+                    
+                    /* Add smooth scrolling behavior */ /*marker*/
+                    scroll-behavior: smooth; /*marker*/
+
+                    /* Add fade mask effect */ /*marker*/
+                    mask-image: linear-gradient(to bottom, /*marker*/
+                        transparent 0%, /* Fully transparent at the very top edge */ /*marker*/
+                        black var(--fade-distance), /* Becomes fully opaque after fading over --fade-distance */ /*marker*/
+                        black calc(100% - var(--fade-distance)), /* Stays opaque until --fade-distance from the bottom */ /*marker*/
+                        transparent 100% /* Fully transparent at the very bottom edge */ /*marker*/
+                    ); /*marker*/
+                    -webkit-mask-image: linear-gradient(to bottom, /*marker*/
+                        transparent 0%, /*marker*/
+                        black var(--fade-distance), /*marker*/
+                        black calc(100% - var(--fade-distance)), /*marker*/
+                        transparent 100% /*marker*/
+                    ); /*marker*/
                 }
 
                 #scroll-area {
@@ -115,6 +136,9 @@ export default class VNTextBox extends HTMLElement {
                     font-family: var(--content-font-family);
                     font-weight: var(--content-font-weight);
                     text-align: var(--content-text-align);
+                    /* Add bottom padding to the scrollable content */ /*marker*/
+                    padding-bottom: var(--content-padding); /*marker*/
+                    box-sizing: border-box; /* Include padding in element's total width and height */ /*marker*/
                 }
                
                 #scroll-area p, #scroll-area div {
@@ -185,11 +209,11 @@ export default class VNTextBox extends HTMLElement {
             ',': 120,
             '!': 250,
             '?': 250,
-            
         };
 
         this.speakerNameElement = this.shadowRoot.querySelector(".speaker-name");
         this.scrollArea = this.shadowRoot.querySelector("#scroll-area");
+        this.contentWrapper = this.shadowRoot.querySelector(".content-wrapper");
         this.sourceSlot = this.shadowRoot.querySelector("#source-slot");
     }
 
@@ -197,7 +221,7 @@ export default class VNTextBox extends HTMLElement {
         return [
             "speaker", "uid", "ms",
             "left", "right", "top", "bottom", "width", "height", "max-height",
-            "cursor"
+            "cursor", "content-padding"
         ];
     }
 
@@ -212,7 +236,7 @@ export default class VNTextBox extends HTMLElement {
 
 
     get cursorChar() { return this.getAttribute("cursor"); }
-    set cursorChar(value) { this.setAttribute("cursor", value); }
+    set cursorChar(value) { this.setAttribute("cursor", value); value !== null ? this.setAttribute('cursor', value) : this.removeAttribute('cursor');}
 
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -223,18 +247,17 @@ export default class VNTextBox extends HTMLElement {
                 this.#renderSpeaker(newValue);
             }
         } else if (name === "cursor") {
-            this.style.setProperty('--cursor-content', newValue ? `"${newValue}"` : '""');
+            const cursorValue = newValue !== null ? (newValue === "" ? '""' : `"${newValue}"`) : 'var(--cursor-content, "▶")';
+            this.style.setProperty('--cursor-content', cursorValue);
             if (this.#dynamicCursorElement) {
-                 this.#dynamicCursorElement.style.setProperty('--cursor-content', newValue ? `"${newValue}"` : '""');
+                 this.#dynamicCursorElement.style.setProperty('--cursor-content', cursorValue);
             }
-        } else {
-            this.style.setProperty(`--${name}`, newValue);
+        } else if (name === "content-padding") {
+             this.style.setProperty(`--${name}`, newValue);
+             this.style.setProperty('--fade-distance', newValue);
         }
-
-        if (this.getAttribute("cursor") === null) {
-             this.style.setProperty('--cursor-content', '""');
-        } else if (this.getAttribute("cursor") === "") {
-             this.style.setProperty('--cursor-content', '""');
+        else {
+            this.style.setProperty(`--${name}`, newValue);
         }
     }
 
@@ -261,6 +284,10 @@ export default class VNTextBox extends HTMLElement {
     }
     
     #updateAllCharIntervalsFromAttributes() {
+        Object.keys(this.charIntervals).forEach(key => {
+            if (key.length > 1 || key === '_') delete this.charIntervals[key];
+        });
+
         for (let i = 0; i < this.attributes.length; i++) {
             const attr = this.attributes[i];
             this.#updateCharIntervalsFromAttribute(attr.name, attr.value);
@@ -281,17 +308,15 @@ export default class VNTextBox extends HTMLElement {
         });
         this.#charIntervalObserver.observe(this, { attributes: true });
 
-
         VNTextBox.observedAttributes.forEach(attr => {
-            if (this.hasAttribute(attr) && attr !== "ms") {
-                this.attributeChangedCallback(attr, null, this.getAttribute(attr));
+            if (this.hasAttribute(attr)) {
+                 this.attributeChangedCallback(attr, null, this.getAttribute(attr));
+            } else if (attr === "cursor") {
+                 this.attributeChangedCallback(attr, null, null);
             }
         });
-        if (!this.hasAttribute('cursor')) {
-            this.style.setProperty('--cursor-content', 'var(--cursor-content, "▶")');
-        }
-        if (this.hasAttribute('ms')) {
-            this.ms = parseInt(this.getAttribute('ms'), 10) || 25;
+        if (!this.hasAttribute('content-padding')) {
+             this.style.setProperty('--fade-distance', 'var(--content-padding, 1em)');
         }
 
 
@@ -316,9 +341,6 @@ export default class VNTextBox extends HTMLElement {
         this.removeEventListener('keydown', this.#boundKeyHandler);
         
         if (this.#scrollTimeoutId) clearTimeout(this.#scrollTimeoutId);
-        if (this.#currentRevealPromiseCtrl && this.#currentRevealPromiseCtrl.stop) {
-            this.#currentRevealPromiseCtrl.stop();
-        }
         if (this.#charIntervalObserver) this.#charIntervalObserver.disconnect();
         this.#removeDynamicCursor();
     }
@@ -357,11 +379,11 @@ export default class VNTextBox extends HTMLElement {
         this.#dynamicCursorElement.classList.add('dynamic-cursor');
         this.#dynamicCursorElement.setAttribute('part', 'cursor dynamic-cursor');
         const cursorChar = this.getAttribute('cursor');
-        if (cursorChar !== null) {
-             this.#dynamicCursorElement.style.setProperty('--cursor-content', cursorChar ? `"${cursorChar}"` : '""');
-        }
+         const cursorValue = cursorChar !== null ? (cursorChar === "" ? '""' : `"${cursorChar}"`) : 'var(--cursor-content, "▶")';
+         this.#dynamicCursorElement.style.setProperty('--cursor-content', cursorValue);
        
         targetParent.appendChild(this.#dynamicCursorElement);
+        this.#setCursorVisibility(true);
         return this.#dynamicCursorElement;
     }
 
@@ -388,10 +410,10 @@ export default class VNTextBox extends HTMLElement {
         this.skipRequested = false;
         this.#removeDynamicCursor(); 
         if (this.#scrollTimeoutId) clearTimeout(this.#scrollTimeoutId);
-        if (this.#currentRevealPromiseCtrl && this.#currentRevealPromiseCtrl.stop) {
-            this.#currentRevealPromiseCtrl.stop();
-            this.#currentRevealPromiseCtrl = null;
-        }
+         if (this.#currentRevealPromiseCtrl && this.#currentRevealPromiseCtrl.stop) {
+             this.#currentRevealPromiseCtrl.stop();
+             this.#currentRevealPromiseCtrl = null;
+         }
 
         this.scrollArea.innerHTML = '';
 
@@ -404,28 +426,40 @@ export default class VNTextBox extends HTMLElement {
         }
 
         if (newContent !== null) {
+            while (this.firstChild) {
+                this.removeChild(this.firstChild);
+            }
             if (typeof newContent === 'string') {
-                while (this.firstChild) { 
-                    this.removeChild(this.firstChild);
-                }
                 this.innerHTML = newContent;
             } else if (newContent instanceof Node) {
-                while (this.firstChild) {
-                    this.removeChild(this.firstChild);
-                }
-                this.appendChild(newContent);
+                 this.appendChild(newContent);
+            } else {
+                this.innerHTML = '';
             }
+
             await new Promise(resolve => {
                 const onSlotChange = () => {
                     this.sourceSlot.removeEventListener('slotchange', onSlotChange);
                     resolve();
                 };
                 this.sourceSlot.addEventListener('slotchange', onSlotChange);
-                if (this.sourceSlot.assignedNodes({flatten: true}).length > 0 || newContent === "" || (newContent instanceof Node && newContent.textContent === "")) {
-                   resolve();
-                   this.sourceSlot.removeEventListener('slotchange', onSlotChange);
-                }
+                 if (this.sourceSlot.assignedNodes({flatten: true}).length > 0 || newContent === "" || newContent === null || (newContent instanceof Node && !newContent.textContent.trim())) {
+                    resolve();
+                    this.sourceSlot.removeEventListener('slotchange', onSlotChange);
+                 }
             });
+        } else {
+             await new Promise(resolve => {
+                 const onSlotChange = () => {
+                     this.sourceSlot.removeEventListener('slotchange', onSlotChange);
+                     resolve();
+                 };
+                 this.sourceSlot.addEventListener('slotchange', onSlotChange);
+                  if (this.sourceSlot.assignedNodes({flatten: true}).length > 0) {
+                     resolve();
+                     this.sourceSlot.removeEventListener('slotchange', onSlotChange);
+                 }
+             });
         }
         
         const nodesToDisplay = this.sourceSlot.assignedNodes({ flatten: true });
@@ -449,11 +483,12 @@ export default class VNTextBox extends HTMLElement {
                 ]);
             } catch (e) {
                 if (!this.skipRequested) console.error("Error during content reveal:", e);
+                this.skipRequested = true;
             } finally {
                 this.#currentRevealPromiseCtrl = null;
             }
             
-            if (this.skipRequested) {
+            if (this.skipRequested || this.scrollArea.innerHTML === '') {
                 this.scrollArea.innerHTML = '';
                 function appendFullContent(nodes, parent, textPreprocessor) {
                     for (const node of nodes) {
@@ -462,44 +497,48 @@ export default class VNTextBox extends HTMLElement {
                             parent.appendChild(document.createTextNode(processedText));
                         } else {
                             const clonedNode = node.cloneNode(true);
+                             if (clonedNode.childNodes.length > 0) {
+                                 appendFullContent(Array.from(node.childNodes), clonedNode, textPreprocessor);
+                             }
                             parent.appendChild(clonedNode);
                         }
                     }
                 }
                 appendFullContent(nodesToDisplay, this.scrollArea, (textNode) => this.#preprocessTextNode(textNode));
             }
+            
+            this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+
 
             this.isScrolling = false;
             this.isComplete = true;
             this.#appendDynamicCursor(this.scrollArea);
-            this.#setCursorVisibility(true);
 
         } else {
             this.isScrolling = false;
             this.isComplete = true;
             this.#appendDynamicCursor(this.scrollArea);
-            this.#setCursorVisibility(true);
         }
     }
 
     async #revealContent(sourceNodes, targetParent) {
         for (const sourceNode of sourceNodes) {
             if (this.skipRequested) {
-                const unprocessedNode = sourceNode.cloneNode(true);
-                 if (unprocessedNode.nodeType === Node.TEXT_NODE) {
-                    unprocessedNode.textContent = this.#preprocessTextNode(unprocessedNode);
-                }
-                targetParent.appendChild(unprocessedNode);
-                continue; 
+                return;
             }
 
             if (sourceNode.nodeType === Node.ELEMENT_NODE) {
                 const newElement = sourceNode.cloneNode(false);
                 targetParent.appendChild(newElement);
+                
+                 await new Promise(resolve => requestAnimationFrame(resolve));
+                 if (this.contentWrapper.scrollHeight > this.contentWrapper.clientHeight) {
+                     this.contentWrapper.scrollTop = this.contentWrapper.scrollHeight;
+                 }
+                
                 if (sourceNode.childNodes.length > 0) {
                     await this.#revealContent(Array.from(sourceNode.childNodes), newElement);
-                    if (this.skipRequested) {
-                    }
+                    if (this.skipRequested) return;
                 }
             } else if (sourceNode.nodeType === Node.TEXT_NODE) {
                 const processedText = this.#preprocessTextNode(sourceNode);
@@ -508,11 +547,15 @@ export default class VNTextBox extends HTMLElement {
 
                 for (const char of processedText) {
                     if (this.skipRequested) {
-                        newTextNode.textContent += processedText.substring(newTextNode.textContent.length);
-                        break; 
+                        return;
                     }
                     newTextNode.textContent += char;
                     
+                     await new Promise(resolve => requestAnimationFrame(resolve));
+                     if (this.contentWrapper.scrollHeight > this.contentWrapper.clientHeight) {
+                         this.contentWrapper.scrollTop = this.contentWrapper.scrollHeight;
+                     }
+
                     let delay = this.ms;
                     if (this.charIntervals[char] !== undefined) {
                         delay = this.charIntervals[char];
@@ -523,10 +566,11 @@ export default class VNTextBox extends HTMLElement {
                     if (delay > 0) {
                         await new Promise(r => this.#scrollTimeoutId = setTimeout(r, delay));
                     } else {
-                        await new Promise(r => setTimeout(r, 0)); 
+                        await new Promise(r => requestAnimationFrame(r));
                     }
                 }
             }
+             if (this.skipRequested) return;
         }
     }
 
@@ -534,18 +578,18 @@ export default class VNTextBox extends HTMLElement {
         if (!this.isScrolling && this.isComplete) return;
 
         this.skipRequested = true;
+
         if (this.#scrollTimeoutId) {
             clearTimeout(this.#scrollTimeoutId);
             this.#scrollTimeoutId = null;
         }
+
         if (this.#currentRevealPromiseCtrl && this.#currentRevealPromiseCtrl.stop) {
             this.#currentRevealPromiseCtrl.stop();
+        } else {
         }
 
-        await Promise.resolve(); 
-
-        this.isScrolling = false;
-        this.isComplete = true;
+        await new Promise(resolve => setTimeout(resolve, 0));
 
         if (dispatchEvent) {
             this.dispatchEvent(new CustomEvent('skip', { bubbles: true, composed: true }));

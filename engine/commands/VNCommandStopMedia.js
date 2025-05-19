@@ -37,6 +37,8 @@ export default class VNCommandStopMedia extends VNCommand {
                 if (this.options.rewind) {
                     audio.currentTime = 0;
                 }
+            } else if (this.audio === null) {
+                const audioElements = scene.shadowRoot.querySelectorAll("audio");
             } else {
                 Log.color("yellow")`[VNCommandStopAudio] Invalid \`audio\` type. Expected a string or HTMLAudioElement, but got ${audio?.constructor?.name || typeof audio}.`;
             }

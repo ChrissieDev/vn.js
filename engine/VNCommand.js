@@ -169,7 +169,7 @@ export class VNCommandQueue {
      */
     async executeCurrent() {
         while (this.i < this.commands.length) {
-            const command = this.commands[this.i]; // Moved: Fetch current command
+            const command = this.commands[this.i];
             this.i++;
 
             // what do we have here?
@@ -178,6 +178,11 @@ export class VNCommandQueue {
                 // 1. A command to execute?
                 Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command.type}`;
                 const res = await command.execute();
+
+                if (res instanceof VNCommandQueue) {
+                    res.parentQueue = this; // we nested from this queue, so when it's done we should return here.
+                    return res;
+                }
             } else if (command instanceof VNCommandQueue) {
                 // 2. A nested block of commands?
                 Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Command Queue returned: ${command}`;
