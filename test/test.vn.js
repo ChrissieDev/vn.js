@@ -1,4 +1,4 @@
-const test = 'fff';
+const test = 'baz';
 
 // Example: Running a scene.
 START(
@@ -10,21 +10,6 @@ START(
 
     PLAY("everyday", { volume: 0.1 }),
 
-    // new: CHOOSE & OPTION
-    // 
-    // CHOOSE: the args can be either a string or a VNCommandOption object returned by the OPTION function
-    // there is no defined order of the args. you can have a string as the first argument, or anywhere in-between or at the end
-    // but typically you'd put the string first to add some text prompt related to the choices
-    // 
-    // OPTION: the first arguments is the button text for the choice. a <button> is created automatically with the text inside as a text node
-    // if the first argument is a valid HTML string, it becomes a real element and a click event listener is added to it to make it work
-    // the rest of the arguments are variadic arguments for a VNCommandQueue instance to nest into if the user clicks the button.
-    // these arguments are passed to the VNCommandQueue constructor just like START/IF/ELIF/ELSE, etc.
-    // 
-    // extra suggestions:
-    // what if we allow VNCommandIf/VNCommandElseIf/VNCommandElse to conditionally render the button text?
-    // we might have to change how the conditionals' command classes are structured to allow for this since they're designed only to
-    // work within a VNCommandQueue
     CHOOSE(
         "Your classroom door is right there.",
         
@@ -35,22 +20,22 @@ START(
             _
             `You hear her muffled voice talking to someone else inside the classroom. You sigh and open the door anyway.`,
         ),
-        
+
         OPTION("<i style='color: #fff; text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #0ff, 0 0 30px #0ff, 0 0 40px #0ff;'>Go home</i>",
             you
             `Actually, I don't really feel like going to class today. I think I'll just go home.`,
             
             _
-            `You turn around and walk away from the school. You don't care if you get in trouble. You have Diamond promos to play.`
+            `You turn around and walk away from the school. You don't care if you get in trouble. You have Diamond promos to play.`,
+
+            FADE_OUT("5s"),
+
+            STOP
         ),
         
         "Another test",
     ),
 
-    kacey
-    `Lorem ipsum dolor sit amet, consectetur adipiscing elit. In purus enim, hendrerit et lorem et, cursus sodales urna. Phasellus tristique justo in semper facilisis. Interdum et malesuada fames ac ante ipsum primis in faucibus. Praesent ullamcorper auctor nunc. Nullam ac orci tincidunt, venenatis nibh vel, imperdiet metus. In egestas dui ut ligula tristique ullamcorper. Praesent ac enim justo. Praesent eget fermentum elit, vitae suscipit justo.
-
-Aliquam tristique libero eu felis molestie scelerisque. Nulla consectetur urna ut quam lobortis, sit amet accumsan ex convallis. Nunc sit amet nunc et purus commodo elementum ac at ex. Suspendisse potenti. Proin sit amet libero quis sem semper porta. Vivamus vel nibh ipsum. Maecenas nec hendrerit magna, et molestie nunc. In lectus lacus, hendrerit non massa eu, imperdiet pretium sapien. Mauris risus libero, vulputate a lacus et, pulvinar vestibulum ante. Maecenas hendrerit neque a blandit finibus. Ut erat tortor, vehicula id fringilla pulvinar, fringilla sed diam. Morbi sagittis tempor egestas. Morbi sodales libero eu sapien ultricies dignissim non eget nunc. Curabitur nibh augue, semper et dui at, aliquet iaculis libero.`,
     kacey `This class is so lame. I wish I was at home playing <i blue>The Sims 4</i> all fucking day.`,
 
     Mysterious_Figure `Hello, Kacey.`,
@@ -83,7 +68,7 @@ Aliquam tristique libero eu felis molestie scelerisque. Nulla consectetur urna u
     kacey `Guess what? YOU need to get the hell out of my head! I haven't had my morning starbs yet,
     and I'm not in the mood for your creepy esper bullshit. I have a trig test to study for.`,
 
-    Mysterious_Figure `Kacey... you are not going to pass that test... Please listen to me--------`,
+    Mysterious_Figure `Kacey... you are not going to pass that test... Please listen to me---`,
 
     kacey `Ex-CUSE ME!? Are you fucking kidding me? That's it! I'm blocking your spirit energy right now!
     This morning's horoscope said that <i style="

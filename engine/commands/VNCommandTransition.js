@@ -27,12 +27,12 @@ export default class VNCommandTransition extends VNCommand {
 
         return new Promise((resolve) => {
             animation.animate(this.player.scene, {
-                duration: this.duration,
+                duration: `${this.duration || 3000}ms`,
                 easing: "linear",
                 fill: "forwards",
                 iterations: 1,
                 direction: "normal",
-                delay: 0,
+                delay: "0ms",
             }).onfinish = (e) => {
                 Log.color("lightblue")`[VNCommandTransition] Animation finished.`;
                 resolve();

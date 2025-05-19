@@ -16,6 +16,7 @@ import Time from "../utils/time.js";
 import VNCommandStyle from "../engine/commands/VNCommandStyle.js";
 import VNCommandPauseMedia from "../engine/commands/VNCommandPauseMedia.js";
 import VNCommandStopMedia from "../engine/commands/VNCommandStopMedia.js";
+import VNCommandStop from "../engine/commands/VNCommandStop.js";
 
 export default class VNPlayer extends HTMLElement {
     /**
@@ -130,6 +131,16 @@ export default class VNPlayer extends HTMLElement {
         }
     }
 
+    /**
+     * Stop the current scene and clean up.
+     * @param {VNCommandQueue} fromWhatQueue 
+     */
+    abortScene(fromWhatQueue) {
+        Log`[${this}] Aborting scene...`;
+        
+        this.#cleanupScene();
+    }
+
     runScene(script) {
         Log
         `[${this}] Running scene...`
@@ -148,8 +159,14 @@ export default class VNPlayer extends HTMLElement {
                 has(target, key) {
                     return true; // Assume all keys exist to allow dynamic actor creation
                 },
+
                 get(target, key, receiver) {
                     if (key === Symbol.unscopables) return undefined; // Important for `with` statement
+
+                    if (key === "STOP") {
+                        Log`[${this}] STOP command called. Requesting scene stop command.`;
+                        return new VNCommandStop(this.currentQueue, this); // Pass currentQueue to STOP command
+                    }
 
                     if (Reflect.has(target, key)) {
                         return Reflect.get(target, key, receiver);
