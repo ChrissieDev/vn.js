@@ -85,33 +85,28 @@
                         --content-font-size: 2.5cqi;
                         --content-font-family: 'Noto Sans', 'Helvetica', 'Arial', sans-serif;
                     "
+                ></text-box>
+                <text-box 
+                    uid="defaultChoicebox" 
+                    speaker=""
+                    left="1%"
+                    right="1%"
+                    top="1%"
+                    bottom="1%"
+                    ms="15"
+                    
+                    content-padding="2rem"
+                    style="
+                        --speaker-font-size: 3cqi;
+                        --speaker-font-family: 'Noto Sans', 'Helvetica', 'Arial', sans-serif;
+                        --content-font-size: 2.5cqi;
+                        --content-font-family: 'Noto Sans', 'Helvetica', 'Arial', sans-serif;
+                    "
                 >
-                    <vn-style>
-                        
-                        :scope [blue] {
-                            color: lightblue;
-                        }        
-                        
-
-                        :scope [glow] {
-                            color: #fff; /* Color of the text itself */
-                            background-color: transparent; /* Optional: Dark background to see the glow better */
-                            padding: 10px; /* Optional: Just for better display */
-                            font-size: 24px; /* Optional: Make text bigger */
-                            text-shadow:
-                                0 0 5px #fff,
-                                0 0 10px #fff,
-                                0 0 15px #fff,
-                                0 0 20px #0ff,
-                                0 0 30px #0ff,
-                                0 0 40px #0ff;
-                        }
-                        
-                    </vn-style>
                 </text-box>
                 <audio uid="everyday" src="./assets/audio/music/everyday.mp3" loop></audio>
             </vn-project>
-            <vn-scene textbox="defaultTextbox">
+            <vn-scene textbox="defaultTextbox" choicebox="defaultChoicebox">
                 <vn-script src="./test.vn.js"></vn-script>
             </vn-scene>
         </vn-player>

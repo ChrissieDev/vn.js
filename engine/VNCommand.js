@@ -16,7 +16,7 @@ export class VNCommand {
 
     /**
      * A list of promises that need to be resolved before the command can be executed.
-     * For example, if the command needs an asset to be loaded, like an audio file, 
+     * For example, if the command needs an asset to be loaded, like an audio file,
      * the player will know if it this command can be executed right now or if it needs to wait.
      * @type {Array<Promise>}
      */
@@ -38,7 +38,7 @@ export class VNCommand {
 
     /**
      * @abstract
-     * @param {{ type: string }} object 
+     * @param {{ type: string }} object
      */
     deserialize(object) {
         throw new Error(`[${this.constructor.name}] deserialize() not implemented. Must be overridden in the subclass.`);
@@ -55,7 +55,7 @@ export class VNCommandQueue {
     parentQueue = null;
 
     /**
-     * @type {import("../components/vn-player.js".default)}
+     * @type {import("../components/vn-player.js").default}
      */
     player;
 
@@ -65,9 +65,9 @@ export class VNCommandQueue {
     condition = true;
 
     /**
-     * 
-     * @param {import("../components/vn-player.js".default)} player 
-     * @param {Array<VNCommand | object | string>} commands 
+     *
+     * @param {import("../components/vn-player.js").default)} player
+     * @param {Array<VNCommand | object | string>} commands
      */
     constructor(player, condition = () => true, commands = [], parentQueue = null) {
         this.player = player;
@@ -77,11 +77,12 @@ export class VNCommandQueue {
     }
 
     setCommands(commands = []) {
-        this.commands = commands;
+        this.commands = this.parseCommands(...commands);
     }
 
     addCommand(command, i = this.commands.length) {
         const parsedCommand = this.parseCommand(command);
+        // TODO: Implement insertion logic if needed, for now parseCommands handles initial setup
     }
 
     /**
@@ -107,7 +108,7 @@ export class VNCommandQueue {
                 } else {
                     parsed.push(unpacked);
                 }
-            } else {
+            } else if (parsedCommand) { // Ensure parsedCommand is not null/undefined
                 parsed.push(parsedCommand);
             }
         }
@@ -118,23 +119,42 @@ export class VNCommandQueue {
     parseCommand(command) {
         let res = null;
 
-        if (command instanceof VNCommand) {
+        if (command instanceof VNCommand) { // This also catches VNCommandOption, VNCommandChoose etc.
             return command;
         } else if (command instanceof VNCommandQueue) {
             return command;
-        } else if (typeof command === 'object') {
+        } else if (typeof command === 'object' && command !== null) { // Ensure command is not null before treating as object
             return this.parseJSONObject(command);
         } else if (typeof command === 'string' || typeof command === 'number' || typeof command === 'boolean') {
             // this is a 'VNCommandSay' command that uses the last specified actor focus to spawn a dialogue box
             Log.color("lightblue")`[VNCommandQueue] Parsing string ${command} as a command.`;
+            // This will be handled by VNCommandSay resolution logic later, for now, keep as string.
+            // Or, more robustly, this should be explicitly converted to a VNCommandSay here if that's the intent.
+            // For now, assuming VNCommandSay is implicitly handled or created by actor functions.
+            // Let's assume for now that raw strings in command arrays become VNCommandSay.
+            // This part needs clarification based on how player handles raw strings in executeCurrent.
+            // Given the actor`` syntax, direct strings in queue are likely narrative text.
+            // We need VNCommandSay for this. This might be a good place to ask for `engine/commands/VNCommandSay.js`.
+            // For now, I'll assume this is handled by the player or specific command types.
+            // The original code has:
+            // else if (typeof command === 'string' || typeof command === 'number' || typeof command === 'boolean') {
+            //    Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command}`;
+            // }
+            // This implies it passes strings through. Let's make them VNCommandSay with a default/last speaker.
+            // For now, to avoid breaking existing logic and needing VNCommandSay.js, I'll keep it passing the string.
             return command;
         } else if (typeof command === 'function') {
             if (command.isVnObjectFunction) {
                 Log.color("lightgreen")`[VNCommandQueue] Parsing function ${command.name} as a command.`;
-                return command.chainedSayCommands;
+                // chainedSayCommands is an array of VNCommandSay instances, parse them individually.
+                return this.parseCommands(...command.chainedSayCommands);
             } else {
                 Log.color("yellow")`[VNCommandQueue] Parsing function ${command.name} as a command.`;
-                res = command(this);
+                res = command(this); // The function might return a command or an array of commands
+                if (res) {
+                    return this.parseCommand(res); // Parse the result of the function call
+                }
+                return null; // If function returns nothing, it's a void operation
             }
         }
 
@@ -144,9 +164,14 @@ export class VNCommandQueue {
     parseJSONObject(json = {}) {
         if (typeof json === 'string') {
             json = JSON.parse(json);
-        } else if (typeof json !== 'object') {
-            throw new Error("VNCommandQueue.parseJSONObject: json must be a string or an object");
+        } else if (typeof json !== 'object' || json === null) {
+            throw new Error("VNCommandQueue.parseJSONObject: json must be a string or a non-null object");
         }
+        // TODO: Implement actual parsing logic for JSON object to VNCommand if needed
+        // For now, this is a placeholder. If JSON objects are meant to be commands,
+        // they'd need a 'type' field to dispatch to specific command constructors.
+        Log.warn(`[VNCommandQueue] parseJSONObject not fully implemented for generic objects. Object:`, json);
+        return null; // Or throw error if unhandled JSON objects are not allowed.
     }
 
     async checkCondition() {
@@ -172,41 +197,41 @@ export class VNCommandQueue {
             const command = this.commands[this.i];
             this.i++;
 
-            // what do we have here?
-
             if (command instanceof VNCommand) {
-                // 1. A command to execute?
-                Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command.type}`;
+                Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command.constructor.name} (${command.type || 'no-type'})`;
                 const res = await command.execute();
 
                 if (res instanceof VNCommandQueue) {
-                    res.parentQueue = this; // we nested from this queue, so when it's done we should return here.
+                    res.parentQueue = this;
                     return res;
                 }
             } else if (command instanceof VNCommandQueue) {
-                // 2. A nested block of commands?
                 Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Command Queue returned: ${command}`;
                 if (await command.checkCondition()) {
-                    command.parentQueue = this; // we nested from this queue, so when it's done we should return here.
+                    command.parentQueue = this;
                     return command;
                 } else {
-                    break;
+                    // Condition false, skip this queue. Loop will continue to next command in this.commands
+                    Log.color("lightred")`[VNCommandQueue.executeCurrent - ${this.i}] Skipping command queue due to condition: ${command.condition}`;
                 }
             } else if (typeof command === 'string' || typeof command === 'number' || typeof command === 'boolean') {
-                // 3. A string, number or boolean?
-                Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command}`;
+
+                Log.color("lightyellow")`[VNCommandQueue.executeCurrent - ${this.i}] Raw string/value encountered: ${command}. This should ideally be a VNCommandSay.`;
+
+                if (this.player && typeof this.player.handleNarrativeText === 'function') {
+                    await this.player.handleNarrativeText(String(command));
+                } else {
+                     Log.color("red")`[VNCommandQueue.executeCurrent - ${this.i}] Raw string "${command}" cannot be processed. Player needs handleNarrativeText or this should be a VNCommandSay.`;
+                }
             } else {
-                // 4. Unknown type (handle later possibly if needed)
                 Log.color("red")`[VNCommandQueue.executeCurrent - ${this.i}] Invalid command: ${command}`;
-                throw new Error(`VNCommandQueue.executeCurrent: Invalid command: ${command}`);
+                throw new Error(`VNCommandQueue.executeCurrent: Invalid command type: ${typeof command}, value: ${command}`);
             }
         }
 
-        // Return to the parent queue if we have one.
         if (this.parentQueue && this.parentQueue instanceof VNCommandQueue) {
             return this.parentQueue;
         } else {
-            // We only land here if we are the root queue and we're done executing.
             return null;
         }
     }
@@ -215,5 +240,4 @@ export class VNCommandQueue {
 export default {
     VNCommandQueue,
     VNCommand,
-    
-}
+};

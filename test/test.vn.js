@@ -15,17 +15,19 @@ START(
     // CHOOSE: the args can be either a string or a VNCommandOption object returned by the OPTION function
     // there is no defined order of the args. you can have a string as the first argument, or anywhere in-between or at the end
     // but typically you'd put the string first to add some text prompt related to the choices
-    //
+    // 
     // OPTION: the first arguments is the button text for the choice. a <button> is created automatically with the text inside as a text node
     // if the first argument is a valid HTML string, it becomes a real element and a click event listener is added to it to make it work
     // the rest of the arguments are variadic arguments for a VNCommandQueue instance to nest into if the user clicks the button.
     // these arguments are passed to the VNCommandQueue constructor just like START/IF/ELIF/ELSE, etc.
-    //
+    // 
     // extra suggestions:
     // what if we allow VNCommandIf/VNCommandElseIf/VNCommandElse to conditionally render the button text?
     // we might have to change how the conditionals' command classes are structured to allow for this since they're designed only to
     // work within a VNCommandQueue
-    CHOOSE("Your classroom door is right there.",
+    CHOOSE(
+        "Your classroom door is right there.",
+        
         OPTION("Open the door",
             you
             `I hope Kacey's absent today. I don't want to deal with her bullshit.`,
@@ -33,13 +35,18 @@ START(
             _
             `You hear her muffled voice talking to someone else inside the classroom. You sigh and open the door anyway.`,
         ),
-        OPTION("Go home",
+        
+        "<span style=\"transform: rotate(180deg);\">Testing: <img src='https://wikimedia.org/api/rest_v1/media/math/render/svg/0f2b5a3c4d7e8f6b9a0c1d4e2f3a5b8c7d4e5f6b' style='width: 100px; height: 100px;' /></span>",
+
+        OPTION("<i style='color: #fff; text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px #0ff, 0 0 30px #0ff, 0 0 40px #0ff;'>Go home</i>",
             you
             `Actually, I don't really feel like going to class today. I think I'll just go home.`,
             
             _
             `You turn around and walk away from the school. You don't care if you get in trouble. You have Diamond promos to play.`
-        )
+        ),
+        
+        "Another test",
     ),
 
     kacey
@@ -60,11 +67,14 @@ Aliquam tristique libero eu felis molestie scelerisque. Nulla consectetur urna u
 
     PAUSE("everyday"),
 
-    kacey `Yeah, I know. I'm totally failing trig.`,
+    kacey 
+    `Yeah, I know. I'm totally failing trig.`
+    `I don't need some ESPER weirdo to tell me that. I can see the grades on my report card.`,
 
     Mysterious_Figure `No, I mean you are in danger of losing your life.`,
 
-    "Kacey whips her head around, slinging her long, blonde hair over her shoulder. She clicks her tongue and rolls her eyes.",
+    _
+    `Kacey whips her head around, slinging her long, blonde hair over her shoulder. She clicks her tongue and rolls her eyes.`,
 
     PLAY("everyday", { volume: 0.1 }),
 

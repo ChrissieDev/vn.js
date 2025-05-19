@@ -38,7 +38,7 @@ export default class VNScene extends HTMLElement {
                     gap: 2%; 
                     width: 100%; 
                     height: 100%; 
-                    padding: 0 5%;
+                    padding: 0;
                     box-sizing: border-box; 
                     filter: var(--vn-objects-filter, drop-shadow(2px 2px 3px rgba(0,0,0,0.4))); 
                 }
@@ -49,7 +49,8 @@ export default class VNScene extends HTMLElement {
                     top: 0;
                     left: 0;
                     z-index: 3; 
-                    
+                    padding: 0;
+                    margin: 0;
                 }
 
                 .hidden-slot {

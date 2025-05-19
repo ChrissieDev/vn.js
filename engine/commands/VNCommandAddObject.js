@@ -67,6 +67,7 @@ export default class VNCommandAddObject extends VNCommand {
                 targetObject = player.cloneObjectDefinition(uid);
                 targetObject.setAttribute("uid", uid);
                 targetObject.setAttribute("cloned", "");
+
                 // only set the name if it wasn't set before
                 if (targetObject.getAttribute("name") === null) {
                     targetObject.setAttribute("name", uid);
@@ -74,7 +75,6 @@ export default class VNCommandAddObject extends VNCommand {
 
                 return targetObject;
             } else {
-                // it already exists in the scene... we can't add it again.
                 Log.color("#ff6666")`[VNCommandAddObject] Object ${object} already exists in the scene.`;
                 return null;
             }

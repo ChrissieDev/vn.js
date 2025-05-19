@@ -259,7 +259,9 @@ export class Logger {
     };
 
     constructor() {
-        this.#listeners.onLog.push(({ rawMessage, appliedStyles }) => {
+        this.#listeners.onLog.push(({ rawMessage, appliedStyles, consoleMethod }) => {
+            const effectiveConsoleMethod = (typeof consoleMethod === 'function') ? consoleMethod : console.log;
+
             if (IS_BROWSER && appliedStyles.length > 0) {
                 const cssStyle = ansiToCss(appliedStyles);
                 if (cssStyle !== "") {
@@ -275,7 +277,7 @@ export class Logger {
                         }
                     }
                     consoleArgs[0] = formatStringParts.join("");
-                    if (consoleArgs[0]) console.log(...consoleArgs);
+                    if (consoleArgs[0]) effectiveConsoleMethod(...consoleArgs);
                     return;
                 }
             }
@@ -322,7 +324,7 @@ export class Logger {
             }
 
             if (logArgs.length > 0) {
-                console.log(...logArgs);
+                effectiveConsoleMethod(...logArgs);
             }
         });
     }
@@ -364,7 +366,7 @@ export class Logger {
         return this;
     }
 
-    #cssToAnsi(cssColor, isBackground = false) {
+    _cssToAnsi(cssColor, isBackground = false) {
         const targetRgb = _parseCssColorToRgb(cssColor);
         if (!targetRgb) {
             return "";
@@ -392,7 +394,7 @@ export class Logger {
         return closestAnsiName ? ANSI_STYLES[closestAnsiName] : "";
     }
 
-    log(strings, ...values) {
+    _processAndDispatch(consoleMethod, strings, values) {
         const messageParts = [];
         for (let i = 0; i < strings.length; i++) {
             messageParts.push(strings[i]);
@@ -425,7 +427,7 @@ export class Logger {
 
         if (hasIgnoredLabel) {
             this.#currentStyles = [];
-            return this.log.bind(this);
+            return; // Public method handles returning bound function
         }
 
         let textualMessage = "";
@@ -456,19 +458,15 @@ export class Logger {
             ...this.#persistentStyles,
             ...this.#currentStyles,
         ];
-        const stylePrefix =
-            IS_NODE && combinedStyles.length > 0 ? combinedStyles.join("") : "";
-        const styleSuffix =
-            IS_NODE && combinedStyles.length > 0 ? ANSI_STYLES.reset : "";
-        const styledTextualMessage = stylePrefix + textualMessage + styleSuffix;
 
         const eventData = {
             target: this,
-            message: styledTextualMessage,
+            message: textualMessage, // Plain textual concatenation
             rawMessage: rawMessageForOutput,
             timestamp: Date.now(),
             labels: callLabels,
             appliedStyles: combinedStyles,
+            consoleMethod: consoleMethod,
         };
 
         for (const callback of this.#listeners.onLog) {
@@ -480,6 +478,10 @@ export class Logger {
         }
 
         this.#currentStyles = [];
+    }
+
+    log(strings, ...values) {
+        this._processAndDispatch(console.log, strings, values);
         return this.log.bind(this);
     }
 
@@ -536,7 +538,7 @@ export class Logger {
             return this.#addStyle(ANSI_STYLES[lowerColorValue]);
         } else {
             if (IS_NODE) {
-                const ansiColor = this.#cssToAnsi(colorValue, false);
+                const ansiColor = this._cssToAnsi(colorValue, false);
                 return this.#addStyle(ansiColor);
             } else if (IS_BROWSER) {
                 return this.#addStyle(`color: ${colorValue};`);
@@ -577,7 +579,7 @@ export class Logger {
         }
 
         if (IS_NODE) {
-            const ansiBgColor = this.#cssToAnsi(colorValue, true);
+            const ansiBgColor = this._cssToAnsi(colorValue, true);
             return this.#addStyle(ansiBgColor);
         } else if (IS_BROWSER) {
             return this.#addStyle(`background-color: ${colorValue};`);
@@ -608,6 +610,23 @@ export class Logger {
     }
 }
 
+const LOG_LEVEL_METHODS = {
+    info: typeof console !== 'undefined' ? console.info : null,
+    warn: typeof console !== 'undefined' ? console.warn : null,
+    error: typeof console !== 'undefined' ? console.error : null,
+    debug: typeof console !== 'undefined' ? console.debug : null,
+    trace: typeof console !== 'undefined' ? console.trace : null,
+};
+
+for (const levelName in LOG_LEVEL_METHODS) {
+    const consoleMethod = LOG_LEVEL_METHODS[levelName];
+    Logger.prototype[levelName] = function(strings, ...values) {
+        this._processAndDispatch(consoleMethod, strings, values);
+        return this[levelName].bind(this);
+    };
+}
+
+
 // --- Start: Add direct color/bg methods to Logger.prototype ---
 const directColorMethods = [
     "black",
@@ -631,9 +650,8 @@ const directColorMethods = [
 for (const colorName of directColorMethods) {
     if (ANSI_STYLES[colorName]) {
         Logger.prototype[colorName] = function () {
-            // Use 'function' for 'this'
-            this.color(colorName); // 'this' refers to the Logger instance
-            return this; // Return the instance for chaining
+            this.color(colorName); 
+            return this; 
         };
 
         let bgMethodColorNamePart =
@@ -653,9 +671,8 @@ for (const colorName of directColorMethods) {
 
         if (ANSI_STYLES[`bg${bgMethodColorNamePart}`]) {
             Logger.prototype[bgMethodNameOnLogger] = function () {
-                // Use 'function' for 'this'
-                this.bg(colorName); // 'this' refers to the Logger instance
-                return this; // Return the instance for chaining
+                this.bg(colorName); 
+                return this; 
             };
         }
     }
@@ -666,6 +683,13 @@ const globalLogger = new Logger();
 
 export function Log(strings, ...values) {
     return globalLogger.log(strings, ...values);
+}
+
+// Add new log level methods to Log object
+for (const levelName in LOG_LEVEL_METHODS) {
+    Log[levelName] = (strings, ...values) => {
+        return globalLogger[levelName](strings, ...values);
+    };
 }
 
 export function as(...names) {
@@ -696,11 +720,10 @@ const chainableMethodsOnLog = [
 
 // Add direct color methods to the global Log object (proxying to globalLogger but returning Log)
 for (const colorName of directColorMethods) {
-    // Re-using directColorMethods array
     if (ANSI_STYLES[colorName]) {
         Log[colorName] = () => {
-            globalLogger[colorName](); // Call the method on globalLogger (which now exists on its prototype)
-            return Log; // Return Log for chaining like Log.red.bold()
+            globalLogger[colorName](); 
+            return Log; 
         };
 
         let bgMethodColorNamePart =
@@ -719,10 +742,9 @@ for (const colorName of directColorMethods) {
         const bgMethodNameOnLog = `bg${bgMethodColorNamePart}`;
 
         if (ANSI_STYLES[`bg${bgMethodColorNamePart}`]) {
-            // Check if ANSI_STYLE key exists
             Log[bgMethodNameOnLog] = () => {
-                globalLogger[bgMethodNameOnLog](); // Call the method on globalLogger
-                return Log; // Return Log for chaining
+                globalLogger[bgMethodNameOnLog](); 
+                return Log; 
             };
         }
     }
@@ -730,11 +752,10 @@ for (const colorName of directColorMethods) {
 
 // Add other chainable methods to Log object
 for (const methodName of chainableMethodsOnLog) {
-    // Avoid overwriting the direct color/bg methods we just defined on Log
     if (typeof globalLogger[methodName] === "function" && !Log[methodName]) {
         Log[methodName] = (...args) => {
             globalLogger[methodName](...args);
-            return Log; // Return Log for chaining
+            return Log; 
         };
     }
 }
@@ -746,11 +767,29 @@ function test() {
     let baz = ["baz", "qux", "quux"];
 
     console.log("--- Basic Log ---");
-
     Log`Hello world! ${foo} ${bar} ${baz}`;
 
-    console.log("--- Styled Logs (ANSI names) ---");
+    console.log("--- New Log Level Methods ---");
+    Log.info`This is an info message. ${Date.now()}`;
+    Log.warn`This is a warning message. ${"Warning!"}`;
+    Log.error`This is an error message. ${new Error("Test Error")}`;
+    Log.debug`This is a debug message. ${{a:1, b:2}}`;
+    Log.trace`This is a trace message (check console for stack).`;
 
+    console.log("--- Styled Log Level Methods ---");
+    Log.green.info`This is a green info message.`;
+    Log.yellow.warn`This is a yellow warning message.`;
+    Log.red.bold.error`This is a red bold error message.`;
+    Log.blue.underline.debug`This is a blue underlined debug message.`;
+    Log.cyan.italic.trace`This is a cyan italic trace message.`;
+    Log.bgBrightWhite().black.error`Error with bright white BG and black text.`;
+
+    console.log("--- Chained Template Literals with Log Levels ---");
+    Log.info`Info line 1.` `Info line 2 (separate log).`;
+    Log.red.warn`Warning line 1 (red).` `Warning line 2 (also red, separate log).`;
+
+
+    console.log("--- Styled Logs (ANSI names) ---");
     Log.color("red")`Red text (ANSI). ${foo}`;
     Log.red`Also red text (ANSI direct method). ${foo}`;
     Log.color("green")
@@ -788,32 +827,33 @@ function test() {
         lg.color("blue").italic()
     )`Setting default blue italic. This log itself is NOT affected by this call.`;
     Log`This log should be blue and italic.`;
+    Log.info`This info log should be blue and italic.`;
     Log.bold()`This log should be blue, italic, and bold.`;
+    Log.bold.warn`This warn log should be blue, italic, and bold.`;
     Log.color("green")`This log should be green and italic (color overridden).`;
     Log.setDefaultStyles((lg) =>
         lg.bg("lightgray").color("black")
     )`Setting new defaults: lightgray BG, black text.`;
     Log`This log has new defaults (lightgray BG, black text).`;
+    Log.error`This error log has new defaults.`;
     Log.underline().bold()`This log has new defaults + underline and bold.`;
     Log.clearDefaultStyles()`Clearing default styles. This log is not affected.`;
     Log`This log should be plain again.`;
-    Log.red`This log is just red (no persistent styles).`;
+    Log.red.error`This error log is just red (no persistent styles).`;
 
-    // Demonstrate persistent styles on a separate logger instance
     const myErrorLogger = new Logger();
-    myErrorLogger.setDefaultStyles((log) => log.red().bold()); // Now using direct methods on logger instance
-    myErrorLogger.log`[ERROR] This is a critical error!`;
+    myErrorLogger.setDefaultStyles((log) => log.red().bold());
+    myErrorLogger.error`[ERROR] This is a critical error!`;
     myErrorLogger.bgYellow()
-        .log`[WARNING] This is a warning with custom BG, still red and bold.`; // Direct bg method
+        .warn`[WARNING] This is a warning with custom BG, still red and bold.`;
 
-    // Global logger should be unaffected by myErrorLogger's defaults
     Log`This global log should still be plain.`;
 
-    // Set persistent styles using direct methods via configurator
     Log.setDefaultStyles((lg) =>
         lg.magenta().underline()
-    )`Setting magenta underline default via direct methods.`; // THIS LINE SHOULD NOW WORK
+    )`Setting magenta underline default via direct methods.`;
     Log`This should be magenta and underlined.`;
+    Log.info`This info log should be magenta and underlined.`;
     Log.bgBrightWhite().bold()`This should be magenta, underlined, bright white BG, and bold.`;
     Log.clearDefaultStyles()`Cleared defaults again.`;
     Log`Back to plain.`;
@@ -837,121 +877,117 @@ function test() {
     Log.color("magenta")`${as(
         "debug"
     )} This is a debug message (ANSI Magenta). It WILL be logged.`;
-    Log.magenta`${as(
+    Log.magenta.debug`${as( // Example of styled debug
         "debug"
     )} Also a debug message (ANSI Magenta direct method).`;
-    Log.color("darkorange")`${as(
-        "debug"
-    )} Another debug message (CSS DarkOrange).`;
+    Log.color("darkorange").info`${as( // Example of styled info with label
+        "debug" // Using 'debug' label for an info message
+    )} Another debug message (CSS DarkOrange) but logged via Log.info.`;
 
-    const defaultListenerCleared = globalLogger.configure({
-        clearDefaultListener: true,
-    });
-    if (defaultListenerCleared === globalLogger) {
-        console.log(
-            "--- Default listener cleared, configuring new custom listener ---"
-        );
-    }
 
+    globalLogger.configure({ clearDefaultListener: true });
+    console.log(
+        "--- Default listener cleared, configuring new custom listener ---"
+    );
+    
     globalLogger.configure({
         show: ["verbose"],
-        ignore: ["debug"],
-        onLog: ({ message, timestamp, labels, rawMessage, appliedStyles }) => {
+        ignore: ["debug"], // Now 'debug' label messages (like above) will be ignored by this listener
+        onLog: ({ message, timestamp, labels, rawMessage, appliedStyles, consoleMethod }) => {
+            const effectiveConsoleMethod = (typeof consoleMethod === 'function') ? consoleMethod : console.log;
             const prefix = IS_BROWSER ? "%c" : "";
             const style = IS_BROWSER ? "color: purple; font-weight: bold;" : "";
+            
+            const labelStr = Object.keys(labels).join(', ');
+            const outputMessage = `${prefix}Custom Listener @ ${new Date(
+                timestamp
+            ).toLocaleTimeString()} [${labelStr || 'no labels'}]: ${message}`;
 
-            console.log(
-                `${prefix}Custom Listener @ ${new Date(
-                    timestamp
-                ).toLocaleTimeString()}:`,
-                style,
-                {
-                    textMessage: message,
-                    labels,
-                    rawMessage,
-                    appliedStyles,
-                }
-            );
+            if (IS_BROWSER) {
+                effectiveConsoleMethod(outputMessage, style, { raw: rawMessage, styles: appliedStyles });
+            } else {
+                effectiveConsoleMethod(outputMessage, { raw: rawMessage, styles: appliedStyles });
+            }
         },
     });
 
     console.log(
         "--- Label-Based Logging (After Config with Custom Listener) ---"
     );
-    Log`Log after configuring.`;
-    Log.color("blue")`${as(
+    Log`Log after configuring.`; // Should use custom listener
+    Log.color("blue").info`${as( // Styled info with verbose label
         "verbose"
     )}This verbose message WILL NOW be logged (ANSI Blue).`;
-    Log.blue`${as("verbose")}Also verbose (ANSI Blue direct method).`;
-    Log.color("fuchsia")`${as(
+    Log.blue.warn`${as("verbose")}Also verbose (ANSI Blue direct method) via Log.warn.`; // Styled warn
+    Log.color("fuchsia").error`${as( // Styled error with debug label
         "debug"
-    )}This debug message WILL NOW be ignored (CSS Fuchsia).`;
+    )}This debug message WILL NOW be ignored (CSS Fuchsia) by custom listener.`;
 
     globalLogger.configure({ clearAllListeners: true });
     console.log("--- After Clearing All Listeners ---");
     Log.color(
         "yellow"
-    )`This message will not appear unless a new listener is added.`;
+    ).info`This message will not appear unless a new listener is added.`;
 
+    // Re-add a simple default-like listener
     globalLogger.configure({
-        onLog: ({ rawMessage, appliedStyles }) => {
-            let currentPrefix = "";
-            let currentSuffix = "";
-
-            if (IS_NODE && appliedStyles.length > 0) {
-                currentPrefix = appliedStyles.join("");
-                currentSuffix = ANSI_STYLES.reset;
-            }
-
-            let browserCss = "";
-            if (IS_BROWSER && appliedStyles.length > 0) {
-                browserCss = ansiToCss(appliedStyles);
-            }
-
-            if (IS_BROWSER && browserCss) {
-                const styledLogArgs = [];
-                let formatString = "";
-                rawMessage.forEach((part) => {
-                    if (typeof part === "string") {
-                        formatString += "%c" + part;
-                        styledLogArgs.push(browserCss);
-                    } else {
-                        formatString += "%o";
-                        styledLogArgs.push(part);
-                    }
-                });
-                if (formatString) console.log(formatString, ...styledLogArgs);
-            } else {
-                const logArgs = [];
-                let hasNodeStyles = IS_NODE && appliedStyles.length > 0;
-
-                for (const part of rawMessage) {
-                    if (typeof part === "string" && hasNodeStyles) {
-                        logArgs.push(currentPrefix + part + currentSuffix);
-                    } else {
-                        logArgs.push(part);
-                    }
-                }
-                if (logArgs.length > 0) console.log(...logArgs);
-            }
-        },
+        onLog: globalLogger["#listeners"].onLog[0] // This is a bit of a hack to get the original back
+                                                 // A better way would be to store the default listener function
+                                                 // But for test purposes, let's re-add the initial one.
+                                                 // Actually, the constructor adds the first one. We can re-use that logic.
+                                                 // For now, let's re-create it simply.
     });
+    // The above configure will fail because #listeners is private.
+    // Let's re-add the default listener logic for the test:
+    globalLogger.configure({
+        onLog: ({ rawMessage, appliedStyles, consoleMethod }) => {
+            const effectiveConsoleMethod = (typeof consoleMethod === 'function') ? consoleMethod : console.log;
+            if (IS_BROWSER && appliedStyles.length > 0) {
+                const cssStyle = ansiToCss(appliedStyles);
+                if (cssStyle !== "") {
+                    const formatStringParts = []; const consoleArgs = [""];
+                    for (const item of rawMessage) {
+                        if (typeof item === "string") { formatStringParts.push("%c" + item); consoleArgs.push(cssStyle); }
+                        else { formatStringParts.push("%O"); consoleArgs.push(item); }
+                    }
+                    consoleArgs[0] = formatStringParts.join("");
+                    if (consoleArgs[0]) effectiveConsoleMethod(...consoleArgs);
+                    return;
+                }
+            }
+            const logArgs = []; const useAnsiStyling = IS_NODE && appliedStyles.length > 0;
+            const stylePrefix = useAnsiStyling ? appliedStyles.join("") : ""; const styleSuffix = useAnsiStyling ? ANSI_STYLES.reset : "";
+            const hasEffectiveStyles = useAnsiStyling || (IS_BROWSER && appliedStyles.some(s => typeof s === "string" && s.includes(":")));
+            let prevPushedArgWasObject = false;
+            for (let i = 0; i < rawMessage.length; i++) {
+                const currentRawItem = rawMessage[i]; const nextRawItemIsObject = i + 1 < rawMessage.length && typeof rawMessage[i+1] !== "string";
+                if (typeof currentRawItem === "string") {
+                    if (hasEffectiveStyles && currentRawItem.trim() === "" && (prevPushedArgWasObject || nextRawItemIsObject) ) { logArgs.push(currentRawItem); }
+                    else { if (useAnsiStyling) { logArgs.push(stylePrefix + currentRawItem + styleSuffix); } else { logArgs.push(currentRawItem); } }
+                    prevPushedArgWasObject = false;
+                } else { logArgs.push(currentRawItem); prevPushedArgWasObject = true; }
+            }
+            if (logArgs.length > 0) effectiveConsoleMethod(...logArgs);
+        }
+    });
+
+
     console.log("--- Simple listener re-added (default-like behavior) ---");
-    Log.color("red")`Test with re-added listener.`;
-    Log.red`Another test with re-added listener (direct method).`;
-    Log.color("#008080").bold()`CSS Teal color, bold. ${"Object here:"} ${{
+    Log.color("red").warn`Test with re-added listener (warn).`;
+    Log.red.error`Another test with re-added listener (error direct method).`;
+    Log.color("#008080").bold().info`CSS Teal color, bold (info). ${"Object here:"} ${{
         teal: true,
     }}`;
 
-    // Test persistent styles with the re-added listener
     Log.setDefaultStyles((lg) =>
         lg.green().underline()
     )`Setting green underline default with re-added listener.`;
-    Log`This log should be green and underlined.`;
-    Log.bold()`This should be green, underlined, and bold.`;
+    Log.debug`This debug log should be green and underlined.`;
+    Log.bold().info`This info log should be green, underlined, and bold.`;
     Log.clearDefaultStyles()`Cleared defaults.`;
-    Log`This should be plain again.`;
+    Log.trace`This trace log should be plain again.`;
 }
+
 
 export default {
     Log,

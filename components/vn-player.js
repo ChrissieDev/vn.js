@@ -1,8 +1,10 @@
 import VNAnimation from "../engine/VNAnimation.js";
 import VNCommandPlayMedia from "../engine/commands/VNCommandPlayMedia.js";
-import { VNCommandQueue, VNCommand } from "../engine/VNCommand.js";
+import { VNCommandQueue, VNCommand } from "../engine/VNCommand.js"; // Ensure VNCommand is also exported if needed, or use VNCommandModule.VNCommand
 import VNCommandSay from "../engine/commands/VNCommandSay.js";
 import { VNCommandIf, VNCommandElseIf, VNCommandElse } from "../engine/commands/VNCommandIf.js";
+import VNCommandOption from "../engine/commands/VNCommandOption.js";
+import VNCommandChoose from "../engine/commands/VNCommandChoose.js";
 
 
 import {Log} from "../utils/log.js";
@@ -31,6 +33,9 @@ export default class VNPlayer extends HTMLElement {
      */
     currentQueue = null;
 
+    #defaultTextBox = null;
+
+
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
@@ -57,7 +62,14 @@ export default class VNPlayer extends HTMLElement {
     }
 
     #mutObserver = new MutationObserver((mutations) => {
-
+        // Potentially look for a default text-box when scene is populated
+        for (const mutation of mutations) {
+            if (mutation.type === 'childList' && this.scene) {
+                if (!this.#defaultTextBox || !this.#defaultTextBox.isConnected) {
+                    this.#defaultTextBox = this.scene.querySelector('text-box[uid="dialogue"]') || this.scene.querySelector('text-box');
+                }
+            }
+        }
     });
 
     static get observedAttributes() {
@@ -67,16 +79,21 @@ export default class VNPlayer extends HTMLElement {
     /**
      * Web Components lifecycle method
      * Start the mutation observer to handle any unhandled elements being added to the scene.
-     * Elements that reference 
+     * Elements that reference
      */
     connectedCallback() {
         Log.color("lightgreen").italic()`[${this}] attached to the DOM.`;
-    
+
         this.#mutObserver.observe(this, {
             childList: true,
             attributes: true,
-            subtree: true,
+            subtree: true, // Observe scene children for text-box
         });
+
+        // Initial check for default text box
+        if (this.scene) {
+            this.#defaultTextBox = this.scene.querySelector('text-box[uid="dialogue"]') || this.scene.querySelector('text-box');
+        }
     }
 
     /**
@@ -86,14 +103,27 @@ export default class VNPlayer extends HTMLElement {
      */
     initRuntime() {
         // 1. Reset the runtime context.
-        this.#runtime = {};
+        this.#runtime = {
+            // Provide a way for narrative text (strings not from actors) to be spoken
+            // This maps to the '_' actor function convention
+            _: (...args) => {
+                const actorFn = this.createActorInterface(null, this.currentQueue); // null for narrator
+                return actorFn(...args);
+            },
+
+            you: (...args) => {
+                const actorFn = this.createActorInterface(null, this.currentQueue); // null for narrator
+                return actorFn(...args);
+            }
+        };
+
 
         // 2. Copy over the api functions to the runtime object where the script will run.
         for (const key of Object.keys(this.#runtimeAPI)) {
             const value = this.#runtimeAPI[key];
 
             if (typeof value === "function") {
-                this.#runtime[key] = value.bind(this.#runtime);
+                this.#runtime[key] = value.bind(this.#runtime); // Bind to #runtime
             } else {
                 this.#runtime[key] = value;
             }
@@ -110,34 +140,39 @@ export default class VNPlayer extends HTMLElement {
         let currentQueue = new VNCommandQueue(this, () => true, []); // Initialize with player, but no commands yet.
         this.currentQueue = currentQueue;
         this.initRuntime(); // Populates this.#runtime
-        
-        const createActorInterface = this.createActorInterface;
+
+        const createActorInterface = this.createActorInterface; // get reference
 
         if (typeof script === "string") {
-            // Catching any reference errors in the script to dynamically create actors and bind them to the runtime context.
-            // HEADS UP: This proxy becomes the 'this' context of the script!
             const runtimeContextProxy = new Proxy(this.#runtime, {
                 has(target, key) {
-                    if (typeof key === "symbol" || key === Symbol.unscopables) {
-                        console.log("symbol", key);
-                        return false;
-                    }
-
-                    return true; // assume all keys exist
+                    return true; // Assume all keys exist to allow dynamic actor creation
                 },
                 get(target, key, receiver) {
-                    if (key in target) {
+                    if (key === Symbol.unscopables) return undefined; // Important for `with` statement
+
+                    if (Reflect.has(target, key)) {
                         return Reflect.get(target, key, receiver);
-                    } else if (key in globalThis) {
-                        return globalThis[key];
-                    } else if (!(key in target) && !(key in globalThis) && (typeof key !== 'symbol' && key !== Symbol.unscopables)) {
-                        // If the key is not in the target, and not in globalThis,
-                        // assume the user is trying to import an actor to the scene.
-                        const actorFunc = createActorInterface.call(this, key, currentQueue); // Pass player context correctly
-                        return actorFunc;
+                    }
+                    if (Reflect.has(globalThis, key)) {
+                        return Reflect.get(globalThis, key, receiver);
                     }
 
-                    return Reflect.get(target, key, receiver);
+                    // If not in target or globalThis, assume it's an actor UID
+                    // 'this' inside proxy methods refers to the proxy handler itself, not VNPlayer.
+                    // Need to access VNPlayer instance (this from outer runScene scope)
+                    // The 'this.currentQueue' in createActorInterface call will be undefined if not careful.
+                    // We need the VNPlayer instance, which is `this` in the `runScene` method's scope.
+                    // The `createActorInterface` function itself is already bound or has access to `this` (VNPlayer).
+                    // However, the `currentQueue` it uses for creating commands should be the one active during script parsing.
+                    // The `currentQueue` passed to `createActorInterface` should be `this.currentQueue` (VNPlayer's currentQueue).
+
+                    // Let's ensure createActorInterface is called with the correct context (VNPlayer instance)
+                    // and correct currentQueue (the one being populated by START).
+                    const playerInstance = currentQueue.player; // Or `this` from runScene's scope.
+                    const actorFunc = playerInstance.createActorInterface.call(playerInstance, String(key), currentQueue);
+                    return actorFunc;
+
                 },
             });
 
@@ -146,64 +181,65 @@ export default class VNPlayer extends HTMLElement {
 
             try {
                 const fn = new Function(fullScriptBody);
-                fn.call(runtimeContextProxy); // 'this' inside script will be runtimeContextProxy
+                fn.call(runtimeContextProxy);
             } catch (e) {
+                console.error("Error executing scene script:", e);
                 throw e;
             }
         }
     }
 
     /**
-     * Objects added to the scene may be referenced in the scene script by their uid.
-     * Any object can be used as a speaker by calling it as a tagged template literal function.
-     * @param {string} uid The uid of an existing <vn-object> element inside <vn-project>.
-     * @param {VNCommandQueue} currentQueue 
-     * @returns {Function} A chainable function which, internally, holds an array of VNCommandSay commands.
+     * @param {string | null} uid The uid of an existing <vn-object> element or null for narrator.
+     * @param {VNCommandQueue} currentQueue The command queue commands will be added to.
      */
     createActorInterface(uid, currentQueue) {
-        const player = currentQueue.player;
+        const player = currentQueue.player; // Should be `this` (VNPlayer instance)
 
-        Log`[${player}] Creating actor interface for ${uid}`;
+        Log`[${player}] Creating actor interface for ${uid || 'narrator (_)'}`;
 
-        let actor = player.getSceneObject(uid);
+        let actorNameForDisplay = uid;
+        let actorObject = null;
 
-        if (!(actor instanceof HTMLElement)) {
-            const definition = player.project.cloneObjectDefinition(uid);
-
-            if (definition instanceof Element) {
-                actor = definition;
-                actor.setAttribute("cloned", "");
-            } else {
-                Log.color("#ff6666")`[${player}] Actor ${uid} not found in project. Creating a new VNObject.`;
-                actor = document.createElement("vn-object");
-                actor.setAttribute("uid", uid);
-                actor.setAttribute("name", uid);
-                actor.setAttribute("cloned", "");
-                actor.setAttribute("type", "actor");
-                actor.style.display = "none";
-                player.scene.appendChild(actor);
+        if (uid) {
+            actorObject = player.getSceneObject(uid); // Tries to find in scene
+            if (!actorObject) {
+                const definition = player.project ? player.project.cloneObjectDefinition(uid) : null;
+                if (definition instanceof Element) {
+                    actorObject = definition;
+                    // Actor definitions from project are not yet in scene. ADD command should handle this.
+                    // For SAY, we mostly need the name attribute.
+                    actorNameForDisplay = actorObject.getAttribute("name") || uid;
+                } else {
+                    // If not in project or scene, it's a dynamic actor. Use UID as name.
+                    actorNameForDisplay = uid;
+                }
+            } else { // Found in scene
+                 actorNameForDisplay = actorObject.getAttribute("name") || uid;
             }
+        } else {
+            actorNameForDisplay = null; // Narrator: no speaker name displayed by default
         }
 
+
         const actorFunction = (...args) => {
-            if (args.length === 0 && args[0] === uid) {
+            if (args.length === 1 && typeof args[0] === 'string' && args[0] === uid) { // Call like kacey("kacey")
                 return actorFunction;
             }
 
             const rawStrings = args[0];
             const substitutions = args.slice(1);
-            
             let message = "";
-            
+
             for (let i = 0; i < rawStrings.length; i++) {
                 message += rawStrings[i];
                 if (i < substitutions.length) {
                     message += String(substitutions[i]);
                 }
             }
-
+            // VNCommandSay needs the current queue it's being added to for its `player` context
             actorFunction.chainedSayCommands.push(
-                new VNCommandSay(currentQueue, uid, message)
+                new VNCommandSay(currentQueue, uid, message, actorNameForDisplay) // Pass actorNameForDisplay
             );
             return actorFunction;
         }
@@ -212,145 +248,181 @@ export default class VNPlayer extends HTMLElement {
         actorFunction.isVnObjectFunction = true;
         actorFunction.metadata = {
             uid: uid,
+            displayName: actorNameForDisplay
         }
 
-        actorFunction.animate = (...args) => { /* todo */ }
-        actorFunction.hide = (...args) => { /* todo */ }
-        actorFunction.show = (...args) => { /* todo */ }
-        actorFunction.set = (...args) => { /* todo */ }
-        actorFunction.get = (...args) => { /* todo */ }
+        // TODO: actorFunction.animate, .hide, .show, .set, .get
 
         return actorFunction;
     }
 
+    async handleNarrativeText(text) {
+        Log.info(`[VNPlayer] Handling narrative text: "${text}"`);
+        // This assumes a default text-box exists and VNCommandSay can handle null UID for narrator
+        if (!this.#defaultTextBox && this.scene) {
+            this.#defaultTextBox = this.scene.querySelector('text-box[uid="dialogue"]') || this.scene.querySelector('text-box');
+        }
+        if (!this.#defaultTextBox && this.scene && !this.scene.querySelector('text-box')) {
+            // Auto-create a default text box if none exists for narrative
+            Log.info(`[VNPlayer] Auto-creating default text-box for narrative text.`);
+            this.#defaultTextBox = document.createElement('text-box');
+            this.#defaultTextBox.setAttribute('uid', 'dialogue'); // A common UID for default
+            this.scene.appendChild(this.#defaultTextBox);
+            await new Promise(r => requestAnimationFrame(r)); // Wait for connection
+        }
+
+
+        if (this.#defaultTextBox) {
+            // Create and execute a temporary SAY command for the narrative text
+            const sayCmd = new VNCommandSay(this.currentQueue, null, text, null); // null uid and speakerName for narrator
+            await sayCmd.execute(); // Execute directly
+        } else {
+            Log.error("[VNPlayer] No text-box available to display narrative text:", text);
+        }
+    }
+
+
     #runtimeAPI = {
         START: (...args) => {
-            const playerInstance = this.currentQueue.player; // 'this' here refers to #runtime, so get player from currentQueue
+            const playerInstance = this.currentQueue.player;
             if (args.length === 0) {
-                Log`[${playerInstance}] START was called with no arguments.`;
+                Log.error`[${playerInstance}] START called with no arguments.`;
                 throw new Error("VNPlayer: START command requires at least one argument");
             }
 
-            let queue;
-            if (args[0] instanceof VNCommandQueue) {
-                queue = args[0];
-                queue.player = playerInstance; // Ensure player is set
-                queue.parentQueue = null; // START creates a root queue
-            } else {
-                // The commands from START(...) will form the initial set for the main queue
-                playerInstance.currentQueue.setCommands(playerInstance.currentQueue.parseCommands(...args));
-                queue = playerInstance.currentQueue;
-            }
-            
-            playerInstance.#runScene(queue);
+            // The commands from START(...) will form the initial set for the main queue
+            // The currentQueue is already initialized by runScene, so we just set its commands.
+            playerInstance.currentQueue.setCommands(args); // setCommands calls parseCommands internally
+            playerInstance.#runScene(playerInstance.currentQueue);
         },
 
-        SCENE: (...args) => {
+        SCENE: (...args) => { // This seems to be an alternative to START for self-contained scenes
             const playerInstance = this.currentQueue.player;
-            const queue = new VNCommandQueue(playerInstance, () => true, args);
-            playerInstance.#runScene(queue).then((res) => {
-                alert("Test: Finished running scene.");
+            const sceneQueue = new VNCommandQueue(playerInstance, () => true, args);
+            playerInstance.#runScene(sceneQueue).then(() => {
+                Log.info("SCENE block finished.");
             });
+            // SCENE usually implies it's a command itself if nested.
+            // If it's top-level, it's like START.
+            // For now, assume it's like START for a new block.
+            // This will be problematic if SCENE is used mid-script expecting to return something.
+            // It's more of a structural keyword. Let's treat it as creating a new root queue to run.
         },
 
         PLAY: (audio, options = { volume: 1, loop: false }) => {
-            return new VNCommandPlayMedia(this.currentQueue.player.currentQueue, audio, options);
+            return new VNCommandPlayMedia(this.currentQueue, audio, options);
         },
 
         MUSIC: (audio, options = { volume: 1, loop: true }) => {
-            return new VNCommandPlayMedia(this.currentQueue.player.currentQueue, audio, options);
+            return new VNCommandPlayMedia(this.currentQueue, audio, options);
         },
 
         PAUSE: (audio) => {
-            return new VNCommandPauseMedia(this.currentQueue.player.currentQueue, audio);
+            return new VNCommandPauseMedia(this.currentQueue, audio);
         },
 
         STOP: (audio, options = { rewind: true }) => {
-            return new VNCommandStopMedia(this.currentQueue.player.currentQueue, audio, options);
+            return new VNCommandStopMedia(this.currentQueue, audio, options);
         },
 
         STOP_ALL: () => {
-
-            return new VNCommandStopMedia(this.currentQueue.player.currentQueue, null, { rewind: true });
+            return new VNCommandStopMedia(this.currentQueue, null, { rewind: true });
         },
 
         ADD: (object, options = {}) => {
-            return new VNCommandAddObject(this.currentQueue.player.currentQueue, object, options);
+            return new VNCommandAddObject(this.currentQueue, object, options);
         },
 
         WAIT: (time) => {
-            return new VNCommandWait(this.currentQueue.player.currentQueue, time);
+            return new VNCommandWait(this.currentQueue, time);
         },
 
         STYLE: (style) => {
-            return new VNCommandStyle(this.currentQueue.player.currentQueue, style);
+            return new VNCommandStyle(this.currentQueue, style);
         },
 
         FADE_IN: (duration = '5s') => {
             const playerInstance = this.currentQueue.player;
             duration = Time.parse(duration);
-            playerInstance.scene.style.filter = "brightness(0%)";
+            if (playerInstance.scene) playerInstance.scene.style.filter = "brightness(0%)"; else Log.warn("FADE_IN: No scene found");
             const fadeIn = new VNAnimation(
                 [{ filter: "brightness(0%)" }, { filter: "brightness(100%)" }],
                 { duration: duration, easing: 'linear', fill: 'forwards', iterations: 1, direction: 'normal', delay: 0 }
             );
-            return new VNCommandTransition(playerInstance.currentQueue, fadeIn, duration);
+            return new VNCommandTransition(this.currentQueue, fadeIn, duration);
         },
 
         FADE_OUT: (duration = '5s', options = {}) => {
             const playerInstance = this.currentQueue.player;
             duration = Time.parse(duration);
+            // No initial style set here, assumes current state is bright.
             const fadeOut = new VNAnimation(
                 [{ filter: "brightness(100%)" }, { filter: "brightness(0%)" }],
                 { duration: duration, easing: 'ease-in', fill: 'forwards', iterations: 1, direction: 'normal', delay: 0 }
             );
-            return new VNCommandTransition(playerInstance.currentQueue, fadeOut, duration);
+            return new VNCommandTransition(this.currentQueue, fadeOut, duration);
         },
 
         EVAL: (string) => {
-            return eval(string);
+            // Be very careful with eval. It executes in the context of #runtimeAPI here.
+            // `this` inside eval will be `this.#runtime`.
+            try {
+                return eval(string);
+            } catch (e) {
+                Log.error(`Error in EVAL: "${string}"`, e);
+                return undefined;
+            }
         },
 
         IF: (condition, ...args) => {
-            // 'this' is #runtime object. Get currentQueue from player.
-            const playerInstance = this.currentQueue.player;
-            return new VNCommandIf(playerInstance.currentQueue, condition, ...args);
+            return new VNCommandIf(this.currentQueue, condition, ...args);
         },
 
-        ELIF: (condition, ...args) => { // Corrected name from ELSEIF to ELIF
-            const playerInstance = this.currentQueue.player;
-            return new VNCommandElseIf(playerInstance.currentQueue, condition, ...args);
+        ELIF: (condition, ...args) => {
+            return new VNCommandElseIf(this.currentQueue, condition, ...args);
         },
 
-        ELSE: (...args) => { // ELSE does not take a condition
-            const playerInstance = this.currentQueue.player;
-            return new VNCommandElse(playerInstance.currentQueue, ...args);
+        ELSE: (...args) => {
+            return new VNCommandElse(this.currentQueue, ...args);
+        },
+
+        OPTION: (textOrHtml, ...commands) => {
+            // 'this' here is #runtime, so this.currentQueue is VNPlayer.currentQueue
+            return new VNCommandOption(this.currentQueue, textOrHtml, ...commands);
+        },
+
+        CHOOSE: (...args) => {
+            // 'this' here is #runtime
+            return new VNCommandChoose(this.currentQueue, ...args);
         },
     };
 
     #runtime = {};
-    
+
     async #runScene(queue) {
-        this.currentQueue = queue;
+        this.currentQueue = queue; // Ensure player's currentQueue is the one being run
         Log`[${this}] Running scene with queue: ${queue}`;
 
         this.dispatchEvent(new CustomEvent("scenestart", {
             detail: { queue: this.currentQueue, scene: this.scene },
-            bubbles: true, composed: true   
+            bubbles: true, composed: true
         }));
-        
+
         Log`[${this}] Entering main loop...`;
         let currentExecutionTarget = queue;
         while (currentExecutionTarget instanceof VNCommandQueue) {
             const res = await currentExecutionTarget.executeCurrent();
             currentExecutionTarget = res;
         }
-        this.currentQueue = currentExecutionTarget; // Update currentQueue state
+        // After loop, currentExecutionTarget might be null or some other value.
+        // The player's idea of the "active" queue should reflect this.
+        this.currentQueue = currentExecutionTarget;
+
 
         Log.color("lightgreen")`[${this}] Scene finished running.`;
-        
+
         this.dispatchEvent(new CustomEvent("sceneend", {
-            detail: { queue: this.currentQueue, scene: this.scene },
+            detail: { queue: this.currentQueue, scene: this.scene }, // currentQueue might be null here
             bubbles: true, composed: true
         }));
 
@@ -360,28 +432,55 @@ export default class VNPlayer extends HTMLElement {
     #cleanupScene() {
         Log`[${this}] Cleaning up scene...`;
 
-        const audio = this.querySelectorAll("audio");
-        for (const audioElement of audio) {
+        // Stop all audio
+        const audioElements = this.querySelectorAll("audio"); // Global query on player
+        for (const audioElement of audioElements) {
             audioElement.pause();
             audioElement.currentTime = 0;
+            // Consider removing event listeners from audio elements if they were added by commands
         }
+        // If audio commands add elements to a specific place (e.g., scene), query there.
 
-        this.currentQueue = null;
-        this.#runtime = {};
-        if (this.scene) { // Check if scene exists before clearing
-            this.scene.innerHTML = "";
+        this.currentQueue = null; // Reset current queue
+        this.#runtime = {};      // Reset runtime context for next scene script
+        if (this.scene) {
+            // Clear dynamically added elements from the scene, but not vn-project itself.
+            // This might be too aggressive if users manually add persistent elements to vn-scene in HTML.
+            // A more targeted cleanup might be needed (e.g., remove only elements added by commands).
+            // For now, clearing innerHTML is simple.
+            // this.scene.innerHTML = ""; // This would remove slots too. Bad.
+            // Instead, remove elements from slots or specific types of elements.
+            const objectsSlot = this.scene.shadowRoot.querySelector('slot[name="scene-objects"]');
+            if (objectsSlot) objectsSlot.assignedElements().forEach(el => el.remove());
+
+            const textboxesSlot = this.scene.shadowRoot.querySelector('slot[name="textboxes"]');
+            if (textboxesSlot) textboxesSlot.assignedElements().forEach(el => el.remove());
+            
+            this.#defaultTextBox = null; // Clear reference to default text box
         }
     }
 
     cloneObjectDefinition(uid) {
+        if (!this.project) {
+            Log.warn(`[${this}] Project not found. Cannot clone object definition for UID: ${uid}`);
+            return null;
+        }
         return this.project.cloneObjectDefinition(uid);
     }
 
     getObjectDefinition(uid) {
+        if (!this.project) {
+            Log.warn(`[${this}] Project not found. Cannot get object definition for UID: ${uid}`);
+            return null;
+        }
         return this.project.getObjectDefinition(uid);
     }
 
     getSceneObject(uid) {
+        if (!this.scene) {
+            Log.warn(`[${this}] Scene not found. Cannot get scene object for UID: ${uid}`);
+            return null;
+        }
         return this.scene.getObject(uid);
     }
 }
