@@ -1,8 +1,9 @@
-let's create a domain-specific language lexer, parser and interpreter which emits events when certain procedures are executed
+# .vns example
 
-i want it to be an intendation-based language like python, and it's for my javascript web visual novel engine.
+A short, simple example of how the .vns file format works.
+This is a work in progress and is being changed while I try and figure out if this is a good idea or not.
 
-example code:
+### """Specification"""
 ```
 ;; this is a comment. use two semicolons (;;) to start a comment.
 ;; there is a pre-processing step in the lexer that removes comments from the input string.
@@ -11,7 +12,7 @@ example code:
 
 ;; functions
 ;;
-;; '==>' functions are defined by adding a '==>' before an identifier. i chose '==>' because it looks like an arrow,
+;; '-->' functions are defined by adding a '-->' before an identifier. i chose '-->' because it looks like an arrow,
 ;; and when you add a space after it, you have the same amount of spaces as an indentation level,
 ;; causing the function name to align with the function body
 ;; the function body must be indented one level deeper than the function name
@@ -21,11 +22,11 @@ example code:
 ;; functions should probably be an abstraction of some base 'Scoped' or 'Context' class
 ;; and the context class or whatever should have a `condition` that is an expression to evaluate when it's time to run the function at runtime
 ;; this is useful because multiple things create their own scopes, such as if/else statements, loops, etc.
-==> main
+--> main
     kacey
-    "This is character dialogue using a pre-defined actor's unique identifier (able to be added externally via the interpreter's api at runtime)"
-    "You can use the same speaker multiple times in a row without invoking their id again."
-    "Identifiers are first looked up in the internal scene's actor list, and if not found, an unidentified variable error is thrown."
+    "This is character dialogue."
+    "The name that comes before the dialogue lines must refer to an actor that exists in the project"
+    "Otherwise, the speaker will be invisible. Watch out for typos!"
     "Dialogue pauses execution until the interpreter's `resume` method is called."
     
     _
@@ -33,25 +34,19 @@ example code:
 
     kacey
     """
-    This is a multi-line string.
-    Sometimes, dialogue can be long and span multiple lines.
-    Line breaks are not preserved unless the flag 'p' is added before the triple quotes.
+    This is a multi-line string. Sometimes you want to write lines of
+    dialogue that span longer than the horizontal width of your text editor.
+    It will not preserve line breaks unless you add an empty line or a \<br> tag.
     """
 
     p"""
-    Like this!
-    Here, line breaks are preserved by the parser.
+    Adding the `p` flag before the string literal 
+    causes line breaks to be preserved!
     """
 
     kacey
     "By the way, ${foo} is how you interpolate variables into strings. The value is looked up at runtime when this line is executed."
 
-    ;; variable declaration and assignment.
-    ;; declarations are preceded by a dollar sign to signify a variable,
-    ;; and anything before the next space is the variable name.
-    ;; assignment is done with a single equals sign, and the value is read until the next non-string space.
-    ;; any valid js identifier is a valid identifier here.
-    ;; the dollar sign is only used to declare a variable, not to reference it.
     $foo = "Hello" ;; string
     $bar = 42 ;; number
     $baz = true ;; boolean
@@ -59,9 +54,10 @@ example code:
     $quux = { "key": "value" } ;; object
     $corge = null ;; null
     $grault = undefined ;; undefined
-    $garply ;; also undefined as unassigned variables are undefined by default, just like js
+    $garply ;; also undefined
 
     ;; conditionals
+
     if (expression):
         kacey
         "This is a conditional block. The next line will be executed if the expression evaluates to true."
@@ -69,14 +65,15 @@ example code:
         kacey
         "This is an else block. The previous line was not executed, so this one will be."
 
-;; function with arguments. arguments appear on their own lines, indented one level deeper than the function's parent block
-==> test
+--> test
     $foo
     $bar
-    
-    ;; function call with arguments separated by spaces, like shell commands
+
     print foo
     print bar
+
+    ;; return statement
+    <-- 69 
 
 ;; valid function call
 main

@@ -15,7 +15,6 @@ console.log(
     const exists = document.querySelectorAll("style.__vn-js_no-fouc");
     // only inject a style if hasn't already been injected
     if (exists.length === 0) {
-        
         const style = document.createElement("style");
         style.classList.add("__vn-js_no-fouc");
         style.textContent = `
