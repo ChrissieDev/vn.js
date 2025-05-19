@@ -270,14 +270,8 @@ export default class VNPlayer extends HTMLElement {
         },
 
         STOP_ALL: () => {
-            const playerInstance = this.currentQueue.player;
-            const audioElements = playerInstance.scene.querySelectorAll("audio");
-            for (const audioElement of audioElements) {
-                audioElement.pause();
-                audioElement.currentTime = 0;
-            }
 
-            return new VNCommandStopMedia(playerInstance.currentQueue, null, { rewind: true });
+            return new VNCommandStopMedia(this.currentQueue.player.currentQueue, null, { rewind: true });
         },
 
         ADD: (object, options = {}) => {
