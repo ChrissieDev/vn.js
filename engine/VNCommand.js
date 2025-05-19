@@ -1,6 +1,5 @@
 import { Log } from "../utils/log.js";
 
-
 /**
  * @abstract
  * Generic command class meant to be extended. Throws an error by default when executed.
@@ -195,11 +194,11 @@ export class VNCommandQueue {
     async executeCurrent() {
         while (this.i < this.commands.length) {
             const command = this.commands[this.i];
-            
             this.i++;
 
             if (command instanceof VNCommand) {
                 command.queue = this; // Set the queue for the command
+
                 Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command.constructor.name} (${command.type || 'no-type'})`;
                 const res = await command.execute();
 
