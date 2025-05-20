@@ -32,6 +32,14 @@ export default class VNObject extends HTMLElement {
     }
 
     connectedCallback() {
+        this.closest('vn-scene').addEventListener('resize', (e) => { this.scale(e.detail); });
+    }
+
+    /**
+     * 
+     * @param {Event} e 
+     */
+    scale(e) {
 
     }
 }

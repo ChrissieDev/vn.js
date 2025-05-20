@@ -119,7 +119,7 @@ START(
 
             _ `<i>What the hell?</i> you think to yourself. <i>What's her problem?</i>`,
             
-            kacey `I don't eve know this weirdo's name!`,
+            kacey `I don't even know this weirdo's name!`,
 
         ),
         OPTION(`I'm just gonna be quiet.`,
