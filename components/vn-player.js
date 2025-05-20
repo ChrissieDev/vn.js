@@ -108,12 +108,12 @@ export default class VNPlayer extends HTMLElement {
             // Provide a way for narrative text (strings not from actors) to be spoken
             // This maps to the '_' actor function convention
             _: (...args) => {
-                const actorFn = this.createActorInterface(null, this.currentQueue); // null for narrator
+                const actorFn = this.createActorInterface(null, this.currentQueue); // null uid for narrator
                 return actorFn(...args);
             },
 
             you: (...args) => {
-                const actorFn = this.createActorInterface(null, this.currentQueue); // null for narrator
+                const actorFn = this.createActorInterface(null, this.currentQueue, "You"); 
                 return actorFn(...args);
             }
         };
@@ -127,6 +127,13 @@ export default class VNPlayer extends HTMLElement {
                 this.#runtime[key] = value.bind(this.#runtime); // Bind to #runtime
             } else {
                 this.#runtime[key] = value;
+            }
+        }
+
+        // 3. Inject plugins
+        for (const [name, fn] of Object.entries(this.#pluginsToLoad)) {
+            if (name in this.#runtimeAPI) {
+                Log.error.bold.color("#ff7777")`[${this}] Plugin "${name}" conflicts with existing API function! Skipping injection.`;
             }
         }
     }
@@ -206,11 +213,37 @@ export default class VNPlayer extends HTMLElement {
         }
     }
 
+    #pluginsToLoad = [];
+
+    /**
+     * Basic plugin loading.
+     * Queue up functions to be injected into the runtime context later after the base API is set up.
+     * @todo Support a real plugin format later to avoid conflicts and breaking changes.
+     * @param {(...args) => VNCommand | VNCommandQueue } fn 
+     */
+    loadPlugin(fn) {
+        if (typeof fn !== "function") {
+            Log.error`[${this}] Plugin is not a function!`;
+            throw new Error("VNPlayer: Plugin must be a function");
+        }
+
+        this.#pluginsToLoad[fn.name] = fn;
+    }
+
+    injectPlugins(plugins = this.#pluginsToLoad) {
+        Log.info.color("lightblue")`[${this}] Injecting plugins into runtime context...`;
+
+        for (const [name, fn] of Object.entries(plugins)) {
+            Log.info.color("lightblue")`[${this}] Injecting: ${name}`;
+            this.#runtime[name] = fn.bind(this.#runtime);
+        }
+    }
+
     /**
      * @param {string | null} uid The uid of an existing <vn-object> element or null for narrator.
      * @param {VNCommandQueue} currentQueue The command queue commands will be added to.
      */
-    createActorInterface(uid, currentQueue) {
+    createActorInterface(uid, currentQueue, displayName) {
         const player = currentQueue.player; // Should be `this` (VNPlayer instance)
 
         Log`[${player}] Creating actor interface for ${uid || 'narrator (_)'}`;
@@ -234,14 +267,19 @@ export default class VNPlayer extends HTMLElement {
             } else { // Found in scene
                  actorNameForDisplay = actorObject.getAttribute("name") || uid;
             }
+        } else if (displayName) {
+            // VNCommandSay now accepts a name to display if passed
+            actorNameForDisplay = displayName;
         } else {
-            actorNameForDisplay = null; // Narrator: no speaker name displayed by default
+            actorNameForDisplay = null;
         }
 
 
         const actorFunction = (...args) => {
             if (args.length === 1 && typeof args[0] === 'string' && args[0] === uid) { // Call like kacey("kacey")
                 return actorFunction;
+            } else if (args.length === 0) {
+                Log.error`[${player}] Actor function called with no arguments.`;
             }
 
             const rawStrings = args[0];
@@ -262,13 +300,29 @@ export default class VNPlayer extends HTMLElement {
         }
 
         actorFunction.chainedSayCommands = [];
+
+        // used to identify if this is a VNObject function by VNCommandQueue at parse time
         actorFunction.isVnObjectFunction = true;
         actorFunction.metadata = {
             uid: uid,
             displayName: actorNameForDisplay
         }
 
-        // TODO: actorFunction.animate, .hide, .show, .set, .get
+        actorFunction.animate = (...args) => {
+
+        }
+
+        actorFunction.show = () => {
+
+        }
+
+        actorFunction.hide = () => {
+
+        }
+
+        actorFunction.position = (...args) => {
+
+        }
 
         return actorFunction;
     }
@@ -287,7 +341,6 @@ export default class VNPlayer extends HTMLElement {
             this.scene.appendChild(this.#defaultTextBox);
             await new Promise(r => requestAnimationFrame(r)); // Wait for connection
         }
-
 
         if (this.#defaultTextBox) {
             // Create and execute a temporary SAY command for the narrative text
@@ -456,24 +509,13 @@ export default class VNPlayer extends HTMLElement {
             audioElement.currentTime = 0;
             // Consider removing event listeners from audio elements if they were added by commands
         }
-        // If audio commands add elements to a specific place (e.g., scene), query there.
 
+        // If audio commands add elements to a specific place (e.g., scene), query there.
         this.currentQueue = null; // Reset current queue
         this.#runtime = {};      // Reset runtime context for next scene script
-        if (this.scene) {
-            // Clear dynamically added elements from the scene, but not vn-project itself.
-            // This might be too aggressive if users manually add persistent elements to vn-scene in HTML.
-            // A more targeted cleanup might be needed (e.g., remove only elements added by commands).
-            // For now, clearing innerHTML is simple.
-            // this.scene.innerHTML = ""; // This would remove slots too. Bad.
-            // Instead, remove elements from slots or specific types of elements.
-            const objectsSlot = this.scene.shadowRoot.querySelector('slot[name="scene-objects"]');
-            if (objectsSlot) objectsSlot.assignedElements().forEach(el => el.remove());
 
-            const textboxesSlot = this.scene.shadowRoot.querySelector('slot[name="textboxes"]');
-            if (textboxesSlot) textboxesSlot.assignedElements().forEach(el => el.remove());
-            
-            this.#defaultTextBox = null; // Clear reference to default text box
+        if (this.scene) {
+            this.scene.innerHTML = ""; // Clear scene content. Shadow DOM slots are preserved.
         }
     }
 
