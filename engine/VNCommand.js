@@ -193,42 +193,47 @@ export class VNCommandQueue {
      */
     async executeCurrent() {
         while (this.i < this.commands.length) {
-            const command = this.commands[this.i];
-            this.i++;
+    const command = this.commands[this.i];
 
-            if (command instanceof VNCommand) {
-                command.queue = this; // Set the queue for the command
+    if (command instanceof VNCommand) {
+        command.queue = this; // Set the queue for the command
 
-                Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command.constructor.name} (${command.type || 'no-type'})`;
-                const res = await command.execute();
+        Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Executing command: ${command.constructor.name} (${command.type || 'no-type'})`;
+        const res = await command.execute();
 
-                if (res instanceof VNCommandQueue) {
-                    res.parentQueue = this;
-                    return res;
-                }
-            } else if (command instanceof VNCommandQueue) {
-                Log.color("lightgreen")`[VNCommandQueue.executeCurrent - ${this.i}] Command Queue returned: ${command}`;
-                if (await command.checkCondition()) {
-                    command.parentQueue = this;
-                    return command;
-                } else {
-                    // Condition false, skip this queue. Loop will continue to next command in this.commands
-                    Log.color("lightred")`[VNCommandQueue.executeCurrent - ${this.i}] Skipping command queue due to condition: ${command.condition}`;
-                }
-            } else if (typeof command === 'string' || typeof command === 'number' || typeof command === 'boolean') {
-
-                Log.color("lightyellow")`[VNCommandQueue.executeCurrent - ${this.i}] Raw string/value encountered: ${command}. This should ideally be a VNCommandSay.`;
-
-                if (this.player && typeof this.player.handleNarrativeText === 'function') {
-                    await this.player.handleNarrativeText(String(command));
-                } else {
-                     Log.color("red")`[VNCommandQueue.executeCurrent - ${this.i}] Raw string "${command}" cannot be processed. Player needs handleNarrativeText or this should be a VNCommandSay.`;
-                }
-            } else {
-                Log.color("red")`[VNCommandQueue.executeCurrent - ${this.i}] Invalid command: ${command}`;
-                throw new Error(`VNCommandQueue.executeCurrent: Invalid command type: ${typeof command}, value: ${command}`);
-            }
+        if (res === false) {
+            // PAUSE: do not increment this.i, do not continue
+            return null;
         }
+
+        if (res instanceof VNCommandQueue) {
+            res.parentQueue = this;
+            return res;
+        }
+
+        this.i++; // Only increment if not paused/jumped
+    } else if (command instanceof VNCommandQueue) {
+        // ... (leave this block as is, but move this.i++ to after the block if needed)
+        if (await command.checkCondition()) {
+            command.parentQueue = this;
+            return command;
+        } else {
+            Log.color("lightred")`[VNCommandQueue.executeCurrent - ${this.i}] Skipping command queue due to condition: ${command.condition}`;
+        }
+        this.i++;
+    } else if (typeof command === 'string' || typeof command === 'number' || typeof command === 'boolean') {
+        // ... (leave as is)
+        if (this.player && typeof this.player.handleNarrativeText === 'function') {
+            await this.player.handleNarrativeText(String(command));
+        } else {
+            Log.color("red")`[VNCommandQueue.executeCurrent - ${this.i}] Raw string "${command}" cannot be processed. Player needs handleNarrativeText or this should be a VNCommandSay.`;
+        }
+        this.i++;
+    } else {
+        Log.color("red")`[VNCommandQueue.executeCurrent - ${this.i}] Invalid command: ${command}`;
+        throw new Error(`VNCommandQueue.executeCurrent: Invalid command type: ${typeof command}, value: ${command}`);
+    }
+}
 
         if (this.parentQueue && this.parentQueue instanceof VNCommandQueue) {
             return this.parentQueue;

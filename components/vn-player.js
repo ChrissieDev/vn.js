@@ -542,6 +542,33 @@ export default class VNPlayer extends HTMLElement {
         }
         return this.scene.getObject(uid);
     }
+        /**
+     * Jump to a checkpoint or scene by label or scene name.
+     * Throws an error if both exist with the same name/identifier, if you're dumb.
+     * @param {string} target
+     */
+    jump(target) {
+        const hasCheckpoint = this.checkpoints && this.checkpoints[target];
+        const sceneSelector = `vn-script[src$="${target}.js"], vn-script[src$="${target}"]`;
+        const sceneElement = document.querySelector(sceneSelector);
+        const hasScene = !!sceneElement;
+
+        if (hasCheckpoint && hasScene) {
+            throw new Error(`[VNPlayer] Name collision: both a checkpoint and a scene exist with the identifier "${target}".`);
+        } else if (hasCheckpoint) {
+            const { queue, pointer } = this.checkpoints[target];
+            this.setCurrentQueue(queue);
+            queue.i = pointer;
+            Log.color("orange")`[VNPlayer] Jumping to checkpoint "${target}" at pointer ${pointer}.`;
+            this.continueExecution();
+        } else if (hasScene) {
+            Log.color("orange")`[VNPlayer] Jumping to scene "${target}".`;
+            this.abortScene(this.currentQueue);
+            this.runScene(sceneElement.textContent || sceneElement.getAttribute("src"));
+        } else {
+            throw new Error(`[VNPlayer] No checkpoint or scene found with the identifier "${target}".`);
+        }
+    }
 }
 
 customElements.whenDefined("vn-project").then((res) => {
