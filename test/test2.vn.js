@@ -1,5 +1,5 @@
 START(
-    ADD("kacey"),
+    ADD("drake"),
     ADD("classroom-front-day"),
     FADE_IN("1s"),
 
@@ -8,8 +8,9 @@ START(
     CHOOSE(
         `What do you want to do?`,
         OPTION(`Say hello`,
-            kacey `Hey there!`,
-            _ `You wave at Kacey.`,
+            drake `I love touching kids! i mean, I love teaching kids!`,
+            `Drake seems to be in a good mood today.`,
+            _ `You wave at Drake.`,
             // Loop back to the checkpoint
             JUMP("loop_point")
         ),
@@ -19,7 +20,7 @@ START(
             JUMP("loop_point")
         ),
         OPTION(`End the loop`,
-            kacey `I guess we're done here!`
+            drake `I guess we're done here!`
             // No jump, so the scene will continue and fade out
         )
     ),
