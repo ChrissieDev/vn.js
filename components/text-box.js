@@ -798,6 +798,21 @@ export default class VNTextBox extends HTMLElement {
     }
 
     async promptChoices(promptText, items) {
+        // If a previous choice is still pending, forcibly clean it up
+        if (this.#isChoiceMode && this.#choicePromiseCtrl && this.#choicePromiseCtrl.reject) {
+            this.#choicePromiseCtrl.reject(new Error("Choice interrupted by new promptChoices call."));
+            this.#cleanUpChoiceMode(false);
+        }
+
+        // Removes any existing choices container (so it can be replaced, and wont get stuck)
+        const oldChoices = this.shadowRoot.querySelector('.choices-container');
+        if (oldChoices) oldChoices.remove();
+
+        // Removes any previous choice prompt
+        const oldPrompt = this.shadowRoot.querySelector('.choice-prompt');
+        if (oldPrompt) oldPrompt.remove();
+
+
         if (this.isScrolling) await this.skip(false);
 
         this.#previousSpeakerForChoice = this.hasAttribute('speaker') ? this.getAttribute('speaker') : null;

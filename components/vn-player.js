@@ -5,9 +5,11 @@ import VNCommandSay from "../engine/commands/VNCommandSay.js";
 import { VNCommandIf, VNCommandElseIf, VNCommandElse } from "../engine/commands/VNCommandIf.js";
 import VNCommandOption from "../engine/commands/VNCommandOption.js";
 import VNCommandChoose from "../engine/commands/VNCommandChoose.js";
+import VNCommandCheckpoint from "../engine/commands/VNCommandCheckpoint.js";
+import VNCommandJump from "../engine/commands/VNCommandJump.js";
 
 
-import {Log} from "../utils/log.js";
+import { Log } from "../utils/log.js";
 import VNObject from "./vn-object.js";
 import VNCommandAddObject from "../engine/commands/VNCommandAddObject.js";
 import VNCommandTransition from "../engine/commands/VNCommandTransition.js";
@@ -113,7 +115,7 @@ export default class VNPlayer extends HTMLElement {
             },
 
             you: (...args) => {
-                const actorFn = this.createActorInterface(null, this.currentQueue, "You"); 
+                const actorFn = this.createActorInterface(null, this.currentQueue, "You");
                 return actorFn(...args);
             }
         };
@@ -144,16 +146,16 @@ export default class VNPlayer extends HTMLElement {
      */
     abortScene(fromWhatQueue) {
         Log`[${this}] Aborting scene...`;
-        
+
         this.#cleanupScene();
     }
 
     runScene(script) {
         Log
-        `[${this}] Running scene...`
-        `--- Script ---`
-        `${script}`
-        `--- End ---`;
+            `[${this}] Running scene...`
+            `--- Script ---`
+            `${script}`
+            `--- End ---`;
 
         let currentQueue = new VNCommandQueue(this, () => true, []); // Initialize with player, but no commands yet.
         this.currentQueue = currentQueue;
@@ -265,7 +267,7 @@ export default class VNPlayer extends HTMLElement {
                     actorNameForDisplay = uid;
                 }
             } else { // Found in scene
-                 actorNameForDisplay = actorObject.getAttribute("name") || uid;
+                actorNameForDisplay = actorObject.getAttribute("name") || uid;
             }
         } else if (displayName) {
             // VNCommandSay now accepts a name to display if passed
@@ -465,6 +467,21 @@ export default class VNPlayer extends HTMLElement {
             // 'this' here is #runtime
             return new VNCommandChoose(this.currentQueue, ...args);
         },
+        CHECKPOINT: (label) => {
+            return new VNCommandCheckpoint(this.currentQueue, label);
+        },
+        JUMP: (label) => {
+            return {
+                type: "jump",
+                label,
+                execute: async () => {
+                    this.currentQueue.i++; // prevent infinite loop on jump
+                    this.currentQueue.player.jump(label);
+                    // returning false pauses the current queue, as jump will resume execution elsewhere
+                    return false;
+                }
+            };
+        },
     };
 
     #runtime = {};
@@ -542,11 +559,11 @@ export default class VNPlayer extends HTMLElement {
         }
         return this.scene.getObject(uid);
     }
-        /**
-     * Jump to a checkpoint or scene by label or scene name.
-     * Throws an error if both exist with the same name/identifier, if you're dumb.
-     * @param {string} target
-     */
+    /**
+ * Jump to a checkpoint or scene by label or scene name.
+ * Throws an error if both exist with the same name/identifier, if you're dumb.
+ * @param {string} target
+ */
     jump(target) {
         const hasCheckpoint = this.checkpoints && this.checkpoints[target];
         const sceneSelector = `vn-script[src$="${target}.js"], vn-script[src$="${target}"]`;
@@ -567,6 +584,24 @@ export default class VNPlayer extends HTMLElement {
             this.runScene(sceneElement.textContent || sceneElement.getAttribute("src"));
         } else {
             throw new Error(`[VNPlayer] No checkpoint or scene found with the identifier "${target}".`);
+        }
+        
+    }
+
+    setCheckpoint(label, queue, pointer) {
+        if (!this.checkpoints) this.checkpoints = {};
+        this.checkpoints[label] = { queue, pointer };
+        Log.color("orange")`[VNPlayer] Set checkpoint "${label}" at pointer ${pointer}.`;
+    }
+
+    async continueExecution() {
+        if (this.currentQueue) {
+            let currentExecutionTarget = this.currentQueue;
+            while (currentExecutionTarget instanceof VNCommandQueue) {
+                const res = await currentExecutionTarget.executeCurrent();
+                currentExecutionTarget = res;
+            }
+            this.currentQueue = currentExecutionTarget;
         }
     }
 }
